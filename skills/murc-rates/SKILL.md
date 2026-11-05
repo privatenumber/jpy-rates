@@ -12,15 +12,16 @@ Use murc-rates for exchange-rate data published by MURC (三菱UFJリサーチ�
 | Function | Description | Range |
 | --- | --- | --- |
 | `convertCurrency(options)` | Convert between JPY and one foreign currency using daily TTS/TTB/TTM | 1990+ |
+| `convertWithRates(rates, options)` | Convert with an already-fetched `fetchRates()` result | — |
 | `fetchRates(date)` | Daily TTS/TTB/TTM for all currencies | 1990+ |
-| `fetchDaily(date?)` | Daily TTS/TTB + cash selling/buying rates | 2005+ |
+| `fetchDaily(date?)` | Daily TTS/TTB + cash selling/buying rates | 2005-09+ |
 | `fetchMonthly(year, month)` | Month-end + monthly average + local market rates | 2005-09+ |
 | `fetchYearly(year)` | Year-end + yearly average | 2003+ |
 | `fetchWorld()` | World reference rates against USD | Latest month |
 | `fetchReference(year)` | 8 additional currencies (TWD, BRL, etc.) | 2006+ |
 | `getArchiveSourceUrl(year)` | Official yearly XLS URL | 1990+ |
 | `downloadArchiveSource(year)` | Untouched yearly XLS bytes | 1990+ |
-| `parseArchiveWorkbook(xlsBuffer)` | Parse a caller-provided yearly XLS workbook | 1990+ |
+| `parseArchiveWorkbook(xlsBuffer, { sourceUrl })` | Parse a caller-provided yearly XLS workbook | 1990+ |
 
 ## Quick Start
 
@@ -30,7 +31,7 @@ import { fetchRates } from 'murc-rates';
 const result = await fetchRates('2025-01-06');
 if (result) {
   const usd = result.rates.USD;
-  console.log(usd.ttm); // 104
+  console.log(usd.ttm); // TTM in JPY per `usd.unit` USD
 }
 ```
 
@@ -85,6 +86,10 @@ Use this package to retrieve source-linked rate data, then verify which rate and
 
 - Source: MURC publishes MUFG Bank exchange quotations; each result includes source URLs for verification.
 - TTM = (TTS + TTB) / 2
-- MYR is always "unquoted" (null rates)
-- KRW and IDR are quoted per 100 units
+- Dates: `'YYYY-MM-DD'` strings, or a `Date` at local or UTC midnight. `new Date()` throws as ambiguous.
+- Out-of-range or future dates (Japan time) throw `RangeError`; in-range dates without data return `null`.
+- MYR main-table TTS/TTB are unquoted (null); MYR reference and local market rates can be present
+- KRW and IDR are quoted per 100 units (`unit: 100`); CLI tables mark them with `*`
+- `fetchReference` `perJpy` values are per `perJpyUnit` JPY (CNY/MYR: 100, TWD: 1)
 - Weekends/holidays auto-walk back to preceding business day (fetchRates, fetchDaily)
+- Every fetching function accepts `{ signal }` to cancel requests

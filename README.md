@@ -61,17 +61,24 @@ murc-rates monthly 2025 1                # month-end + monthly average
 murc-rates yearly 2024                   # year-end + yearly average
 murc-rates world                         # 120+ countries vs USD
 murc-rates reference 2024                # TWD, BRL, etc. from local branches
-murc-rates download-source 2024 -o murc_2024.xls
+murc-rates download-source 2024 -o murc_2024.xls   # add --force to overwrite
 murc-rates parse-archive murc_2024.xls --json
 ```
 
-Output is human-readable tables by default. Add `--json` for machine-readable JSON. Colors auto-disabled when piped.
+Output is human-readable tables by default. Add `--json` for machine-readable JSON. Colors are disabled when piped or when `NO_COLOR` is set. Currencies quoted per 100 units are marked with `*`. `--currency` is case-insensitive, and unknown flags are rejected.
 
 Conversions accept negative amounts, for example `murc-rates convert -a -100 -f USD -t JPY -d 2025-01-06`.
 
 ## API
 
 Every result includes a `source` URL pointing to the page or file the data was parsed from. Rate values (`tts`, `ttb`, `ttm`) are `number | null` — `null` when the source doesn't publish that rate for a given currency. Main MUFG rate entries include `unit`: `1` for most currencies and `100` when the source quotes rates per 100 currency units.
+
+### Common behavior
+
+- **Dates:** pass a `'YYYY-MM-DD'` string, or a `Date` at local midnight (`new Date(2025, 0, 6)`) or UTC midnight (`new Date('2025-01-06')`). Other `Date` values, such as `new Date()`, throw because their calendar date is ambiguous.
+- **Ranges:** requests outside the source's available range, or in the future in Japan time, throw a `RangeError` without making a request. Functions return `null` when the source has no data for an in-range request.
+- **Unexpected responses:** unexpected redirects and pages without the expected rate table throw instead of being treated as holidays.
+- **Cancellation:** every function that fetches accepts an optional last argument `{ signal }` with an `AbortSignal`. Aborting stops retries and business-day walkback.
 
 ### Conversion
 
@@ -84,6 +91,7 @@ Converts between JPY and one foreign currency using daily TTS/TTB/TTM rates. Def
 - `to` — currency code, e.g. `'JPY'` or `'USD'`
 - `date` — `string` (`'YYYY-MM-DD'`) or `Date`
 - `rate` — `'tts' | 'ttb' | 'ttm'` (optional, defaults to `'ttm'`)
+- `signal` — `AbortSignal` (optional)
 
 The result includes both the requested date and the source business date actually used. Converted amounts are not rounded.
 
@@ -109,13 +117,28 @@ const result = await convertCurrency({
 // }
 ```
 
+#### convertWithRates(ratesResult, options)
+
+Converts with an already-fetched `fetchRates()` result, without another request. Use it to convert many amounts with one quote. It takes the same `amount`, `from`, `to`, and `rate` options and returns the same result without `requestedDate`.
+
+```ts
+const rates = await fetchRates('2025-01-06')
+if (rates) {
+    const result = convertWithRates(rates, {
+        amount: 100,
+        from: 'USD',
+        to: 'JPY'
+    })
+}
+```
+
 ### Daily rates
 
 #### fetchRates(date)
 
 TTS/TTB/TTM for all currencies on a specific date. Available from 1990. The primary function for most use cases.
 
-- `date` — `string` (`'YYYY-MM-DD'`) or `Date`
+- `date` — `string` (`'YYYY-MM-DD'`) or `Date` (see [Common behavior](#common-behavior))
 
 Returns `null` if no data is found. Rates are keyed by [ISO 4217 currency code](https://en.wikipedia.org/wiki/ISO_4217) (e.g. `USD`, `EUR`, `GBP`).
 
@@ -134,7 +157,7 @@ const result = await fetchRates('2025-01-06')
 
 #### fetchDaily(date?)
 
-Same rates as `fetchRates` plus **cash selling/buying rates** (physical currency exchange). Defaults to today. Available from September 2005.
+Same rates as `fetchRates` plus **cash selling/buying rates** (physical currency exchange). Defaults to today's published page, and `date` is read from that page. Available from 2005-09-01.
 
 - `date` — `string` or `Date` (optional, defaults to today)
 
@@ -163,7 +186,7 @@ const result = await fetchDaily()
 
 Month-end rates and monthly averages. Available from September 2005.
 
-Returns `null` if no data is found. `unit` is `1` for most currencies, `100` for low-value currencies (e.g. KRW, IDR) where rates are quoted per 100 units.
+Returns `null` if no data is found. `localMarketRates` lists rates published by local markets and branches. A rate published as one value, such as a central rate, is in `rate`, with `selling` and `buying` set to `null`. `quoteDate` is set when the source annotates the quote with a date. `unit` is `1` for most currencies, `100` for low-value currencies (e.g. KRW, IDR) where rates are quoted per 100 units.
 
 ```ts
 const result = await fetchMonthly(2025, 1)
@@ -180,8 +203,11 @@ const result = await fetchMonthly(2025, 1)
 //     ...
 //   },
 //   localMarketRates: {
-//     CNY: { name: 'CNY ...', nameJa: '中国元',
-//       selling: 6.50, buying: 6.10,
+//     TWD: { name: 'TWD ...', nameJa: '台湾ドル',
+//       selling: 31.50, buying: 31.10, rate: null, quoteDate: '2025-01-24',
+//       sourceJa: '...', source: '...' },
+//     CNY: { name: 'CNY ...', nameJa: '中国・人民元',
+//       selling: null, buying: null, rate: 7.10, quoteDate: '2025-01-27',
 //       sourceJa: '...', source: '...' },
 //     ...  ← Asian/Latin American currencies quoted against USD from local branches
 //   }
@@ -240,7 +266,7 @@ const result = await fetchWorld()
 
 Daily rates from local MUFG branches for currencies not in the main 31: `CNY`, `TWD`, `MYR` (from 2006), `KRW`, `IDR`, `BRL`, `ARS`, `CLP` (from 2009).
 
-Returns `null` if no data is found for the given year.
+Returns `null` if no data is found for the given year. `perJpy` values are foreign currency per `perJpyUnit` JPY: CNY and MYR are quoted per 100 JPY, and TWD per 1 JPY.
 
 ```ts
 const result = await fetchReference(2024)
@@ -250,6 +276,7 @@ const result = await fetchReference(2024)
 //   currencies: {
 //     TWD: {
 //       sourceJa: '...',
+//       perJpyUnit: 1,
 //       rates: {
 //         perUsd: [{ date: '2024-01-04', tts: 31.50, ttb: 31.10 }, ...],
 //         perJpy: [{ date: '2024-01-04', tts: 0.2250, ttb: 0.2210 }, ...],
@@ -258,6 +285,7 @@ const result = await fetchReference(2024)
 //     },
 //     KRW: {
 //       sourceJa: '...',
+//       perJpyUnit: null,
 //       rates: {
 //         perUsd: [{ date: '2024-01-02', tts: 1000.50, ttb: 999.50 }, ...],
 //       },  // no perJpy — Group B currencies only have perUsd
@@ -274,22 +302,25 @@ MURC publishes yearly XLS archive files. The package keeps source download and p
 
 - `getArchiveSourceUrl(year)` returns the official XLS URL.
 - `downloadArchiveSource(year)` downloads the untouched XLS bytes.
-- `parseArchiveWorkbook(xlsBuffer)` parses a workbook the caller provides and infers the year from workbook dates.
+- `parseArchiveWorkbook(xlsBuffer, { sourceUrl })` parses a workbook the caller provides and infers the year from workbook dates. `source` is the `sourceUrl` you pass, or `null` because the parser cannot know where the bytes came from.
 
 This avoids a combined public download-and-export API. Use the downloaded source files according to the source site's terms.
 
 Encrypted BIFF8 XLS workbooks are supported only when Excel's default password, `VelvetSweatshop`, passes password verification. Supported formats are standard RC4 version `1.1` and RC4 CryptoAPI versions `2.2`, `3.2`, and `4.2` with RC4/SHA-1 and explicit 40-128-bit keys in 8-bit increments. Other passwords, implicit CryptoAPI key sizes, XOR obfuscation, and other encryption formats are unsupported. Password mismatches, unsupported formats, and malformed encryption metadata produce distinct errors. Parsing keeps all transformations in memory and does not modify the input bytes.
 
 ```ts
-import { downloadArchiveSource, parseArchiveWorkbook } from 'murc-rates'
+import { downloadArchiveSource, getArchiveSourceUrl, parseArchiveWorkbook } from 'murc-rates'
 
 const xlsBuffer = await downloadArchiveSource(2024)
-const result = await parseArchiveWorkbook(xlsBuffer)
+const result = await parseArchiveWorkbook(xlsBuffer, {
+    sourceUrl: getArchiveSourceUrl(2024)
+})
 // {
 //   source: 'https://.../murc_2024.xls',
 //   year: 2024,
 //   currencies: {
 //     USD: {
+//       unit: 1,  ← 100 for currencies the workbook quotes per 100 units
 //       daily: [
 //         { date: '2024-01-04', tts: 105.00, ttb: 103.00, ttm: 104.00 },
 //         ...  ← every business day
@@ -300,6 +331,8 @@ const result = await parseArchiveWorkbook(xlsBuffer)
 //       ],
 //       annual: { high: 130.00, low: 105.00, average: 118.00 },
 //     },
+//     // Summary values are null when the workbook does not publish them.
+//     // 1990-2000 workbooks publish only monthly averages, so high and low are null.
 //     ...
 //   }
 // }
