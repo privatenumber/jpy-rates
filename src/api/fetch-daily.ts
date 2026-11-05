@@ -1,9 +1,12 @@
 import { parseHTML } from 'linkedom';
-import type { DailyRate, CashRate, DailyResult } from './types.ts';
+import type {
+	DailyRate, CashRate, DailyResult, FetchOptions,
+} from './types.ts';
 import {
 	parseDate, formatDate, formatDateId, parseRate, computeTtm, cleanCellText,
+	assertDateInRange, findPrecedingBusinessDay,
 } from './utils.ts';
-import { fetchShiftJisHtml } from './fetch-source.ts';
+import { fetchShiftJisHtml, unexpectedPageError } from './fetch-source.ts';
 import { getDailyRateUnit } from './rate-units.ts';
 
 const mainColumnsPerRow = 6;
@@ -57,36 +60,66 @@ const parseCashTable = (table: Element): Record<string, CashRate> => {
 };
 
 const parseDateFromHeading = (document: Document): string | null => {
-	const text = document.body?.textContent ?? '';
+	const text = document.documentElement?.textContent ?? '';
 	const match = text.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
 	if (!match) { return null; }
 	const [, year, month, day] = match;
 	return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
-const maxWalkbackDays = 10;
+const earliestDate = '2005-09-01';
 
-const fetchDailyForDate = async (date: Date): Promise<DailyResult | null> => {
-	const url = `https://www.murc-kawasesouba.jp/fx/past/index.php?id=${formatDateId(date)}`;
-	const html = await fetchShiftJisHtml(url);
-	if (!html) { return null; }
-
+const parseDailyPage = (
+	url: string,
+	html: string,
+	tableSelectors: string[],
+): DailyResult => {
 	const { document } = parseHTML(html);
-	const tables = document.querySelectorAll('table.data-table7');
-	const altTables = document.querySelectorAll('table.data-table5');
-	const allTables = tables.length > 0 ? tables : altTables;
+	const tables = tableSelectors
+		.map(selector => document.querySelectorAll(selector))
+		.find(found => found.length > 0) ?? [];
+	const mainTable = tables[0];
+	if (!mainTable) {
+		throw unexpectedPageError(url, 'missing rate table');
+	}
 
-	const mainTable = allTables[0];
-	if (!mainTable) { return null; }
+	const date = parseDateFromHeading(document);
+	if (!date) {
+		throw unexpectedPageError(url, 'missing date heading');
+	}
+
+	const rates = parseMainTable(mainTable, Number(date.slice(0, 4)));
+	if (Object.keys(rates).length === 0) {
+		throw unexpectedPageError(url, 'empty rate table');
+	}
 
 	return {
 		source: url,
-		date: formatDate(date),
-		rates: parseMainTable(mainTable, date.getFullYear()),
-		cashRates: allTables.length >= 2
-			? parseCashTable(allTables[1])
+		date,
+		rates,
+		cashRates: tables.length >= 2
+			? parseCashTable(tables[1])
 			: {},
 	};
+};
+
+const fetchDailyForDate = async (
+	date: Date,
+	options: FetchOptions,
+): Promise<DailyResult | null> => {
+	const url = `https://www.murc-kawasesouba.jp/fx/past/index.php?id=${formatDateId(date)}`;
+	const html = await fetchShiftJisHtml(url, options);
+	if (!html) { return null; }
+
+	const result = parseDailyPage(url, html, ['table.data-table7', 'table.data-table5']);
+
+	// The page ID uses a two-digit year, so verify the page is for the requested date
+	const expectedDate = formatDate(date);
+	if (result.date !== expectedDate) {
+		throw new Error(`Source page is dated ${result.date}, expected ${expectedDate}: ${url}`);
+	}
+
+	return result;
 };
 
 /**
@@ -98,42 +131,22 @@ const fetchDailyForDate = async (date: Date): Promise<DailyResult | null> => {
  * https://www.nta.go.jp/law/tsutatsu/kihon/shotoku/11a/01.htm
  *
  * The result's `date` field reflects the actual business day used.
- * Call with no arguments to get today's rates.
+ * Call with no date to get today's rates.
+ *
+ * Throws a RangeError for dates before 2005-09-01 or after today in Japan.
  */
 export const fetchDaily = async (
 	date?: string | Date,
+	options: FetchOptions = {},
 ): Promise<DailyResult | null> => {
 	if (!date) {
 		const url = 'https://www.murc-kawasesouba.jp/fx/index.php';
-		const html = await fetchShiftJisHtml(url);
+		const html = await fetchShiftJisHtml(url, options);
 		if (!html) { return null; }
-
-		const { document } = parseHTML(html);
-		const tables = document.querySelectorAll('table.data-table5');
-		const mainTable = tables[0];
-		if (!mainTable) { return null; }
-
-		const resultDate = parseDateFromHeading(document) ?? formatDate(new Date());
-
-		return {
-			source: url,
-			date: resultDate,
-			rates: parseMainTable(mainTable, Number(resultDate.slice(0, 4))),
-			cashRates: tables.length >= 2
-				? parseCashTable(tables[1])
-				: {},
-		};
+		return parseDailyPage(url, html, ['table.data-table5']);
 	}
 
 	const parsed = parseDate(date);
-
-	for (let attempt = 0; attempt < maxWalkbackDays; attempt += 1) {
-		const target = new Date(parsed);
-		target.setDate(target.getDate() - attempt);
-
-		const result = await fetchDailyForDate(target);
-		if (result) { return result; }
-	}
-
-	return null;
+	assertDateInRange(parsed, earliestDate);
+	return findPrecedingBusinessDay(parsed, target => fetchDailyForDate(target, options));
 };

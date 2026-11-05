@@ -106,4 +106,31 @@ describe('fetchRates', () => {
 		`);
 		expect(date).toBe('2025-01-06');
 	});
+
+	if (!process.env.MUFG_LIVE) {
+		test('walks back across the ten-day 2019 Golden Week closure', async () => {
+			const result = await fetchRates('2019-05-06');
+			expect(result!.date).toBe('2019-04-26');
+		});
+
+		test('throws on unexpected redirects instead of walking back', async () => {
+			await expect(fetchRates('2025-02-12')).rejects.toThrow('Unexpected redirect');
+		});
+
+		test('throws on pages without a rate table instead of walking back', async () => {
+			await expect(fetchRates('2025-02-13')).rejects.toThrow('Unexpected page structure');
+		});
+	}
+
+	test('throws RangeError for dates outside the available range', async () => {
+		await expect(fetchRates('1989-12-29')).rejects.toThrow(RangeError);
+		await expect(fetchRates('2099-01-05')).rejects.toThrow('in the future');
+	});
+
+	test('aborts with the caller signal reason', async () => {
+		const controller = new AbortController();
+		const reason = new Error('Stop');
+		controller.abort(reason);
+		await expect(fetchRates('2025-01-06', { signal: controller.signal })).rejects.toBe(reason);
+	});
 });

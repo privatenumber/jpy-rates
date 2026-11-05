@@ -1,29 +1,31 @@
 import { parseHTML } from 'linkedom';
-import type { Rate, RatesResult } from './types.ts';
+import type { FetchOptions, Rate, RatesResult } from './types.ts';
 import {
-	parseDate, formatDate, parseRate, cleanCellText,
+	parseDate, formatDate, parseRate, cleanCellText, assertDateInRange, findPrecedingBusinessDay,
 } from './utils.ts';
-import { fetchShiftJisHtml } from './fetch-source.ts';
+import { fetchShiftJisHtml, unexpectedPageError } from './fetch-source.ts';
 import { getDailyRateUnit, normalizeDailyRateCode } from './rate-units.ts';
 
 const columnsPerRow = 6;
+const earliestDate = '1990-01-01';
 
-// Max days to walk back when looking for a business day.
-// The longest gap is year-end holidays (Dec 31 – Jan 3) plus weekends = ~6 days.
-const maxWalkbackDays = 10;
-
-const fetchRatesForDate = async (date: Date): Promise<RatesResult | null> => {
-	const year = date.getFullYear();
-	const month = date.getMonth() + 1;
-	const day = date.getDate();
+const fetchRatesForDate = async (
+	date: Date,
+	options: FetchOptions,
+): Promise<RatesResult | null> => {
+	const year = date.getUTCFullYear();
+	const month = date.getUTCMonth() + 1;
+	const day = date.getUTCDate();
 
 	const url = `https://www.murc-kawasesouba.jp/fx/past_3month_result.php?y=${year}&m=${month}&d=${day}`;
-	const html = await fetchShiftJisHtml(url);
+	const html = await fetchShiftJisHtml(url, options);
 	if (!html) { return null; }
 
 	const { document } = parseHTML(html);
 	const table = document.querySelector('table.data-table5');
-	if (!table) { return null; }
+	if (!table) {
+		throw unexpectedPageError(url, 'missing rate table');
+	}
 
 	// The HTML is malformed — most <tr> opening tags are missing,
 	// so linkedom doesn't group <td> elements into rows.
@@ -53,6 +55,10 @@ const fetchRatesForDate = async (date: Date): Promise<RatesResult | null> => {
 		}
 	}
 
+	if (Object.keys(rates).length === 0) {
+		throw unexpectedPageError(url, 'empty rate table');
+	}
+
 	return {
 		source: url,
 		date: formatDate(date),
@@ -70,19 +76,14 @@ const fetchRatesForDate = async (date: Date): Promise<RatesResult | null> => {
  *
  * The result's `date` field reflects the actual business day used, which may
  * differ from the requested date.
+ *
+ * Throws a RangeError for dates before 1990-01-01 or after today in Japan.
  */
 export const fetchRates = async (
 	date: string | Date,
+	options: FetchOptions = {},
 ): Promise<RatesResult | null> => {
 	const parsed = parseDate(date);
-
-	for (let attempt = 0; attempt < maxWalkbackDays; attempt += 1) {
-		const target = new Date(parsed);
-		target.setDate(target.getDate() - attempt);
-
-		const result = await fetchRatesForDate(target);
-		if (result) { return result; }
-	}
-
-	return null;
+	assertDateInRange(parsed, earliestDate);
+	return findPrecedingBusinessDay(parsed, target => fetchRatesForDate(target, options));
 };

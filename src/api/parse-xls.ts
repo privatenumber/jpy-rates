@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import * as XLSX from 'xlsx';
-import { formatDate } from './utils.ts';
 import { fetchSource } from './fetch-source.ts';
+import type { FetchOptions } from './types.ts';
 
 /* eslint-disable no-bitwise -- RC4 and BIFF8 record parsing require bitwise operations */
 const rc4Transform = (key: Uint8Array, data: Uint8Array): Uint8Array => {
@@ -351,8 +351,8 @@ export const parseXlsBuffer = async (input: XlsInput): Promise<XLSX.WorkBook> =>
 	return XLSX.read(decrypted, { type: 'buffer' });
 };
 
-export const fetchXls = async (url: string): Promise<XLSX.WorkBook> => {
-	const response = await fetchSource(url);
+export const fetchXls = async (url: string, options?: FetchOptions): Promise<XLSX.WorkBook> => {
+	const response = await fetchSource(url, options);
 	if (response.status < 200 || response.status >= 300) {
 		throw new Error(`HTTP ${response.status}: ${url}`);
 	}
@@ -378,11 +378,13 @@ export const sheetToRows = (sheet: XLSX.WorkSheet): Row[] => (
 	})
 );
 
+const millisecondsPerDay = 86_400_000;
+
+// Excel serial date: days since Jan 0, 1900, counting the nonexistent Feb 29, 1900
+// (Lotus 1-2-3 bug at serial 60). Computed in UTC so the host timezone cannot shift the date.
 export const excelDateToIso = (serial: number): string => {
-	// Excel serial date: days since Jan 0, 1900 (with Lotus 1-2-3 bug at serial 60)
-	// For dates after Feb 28, 1900 (serial > 59), subtract 1 to account for the phantom Feb 29
 	const adjustedSerial = serial > 59 ? serial - 1 : serial;
-	const epoch = new Date(1900, 0, 1); // Jan 1, 1900
-	const date = new Date(epoch.getTime() + (adjustedSerial - 1) * 86_400_000);
-	return formatDate(date);
+	return new Date(Date.UTC(1899, 11, 31) + adjustedSerial * millisecondsPerDay)
+		.toISOString()
+		.slice(0, 10);
 };

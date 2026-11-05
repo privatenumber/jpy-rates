@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'manten';
-import { convertCurrency } from '../src/api/convert-currency.ts';
+import { convertCurrency, convertWithRates } from '../src/api/convert-currency.ts';
 import { fetchRates } from '../src/api/fetch-rates.ts';
 
 describe('convertCurrency', () => {
@@ -119,6 +119,60 @@ describe('convertCurrency', () => {
 			from: 'USD',
 			to: 'EUR',
 			date: '2025-01-06',
-		})).rejects.toThrow('only supports conversions between JPY and one foreign currency');
+		})).rejects.toThrow('only supports JPY and one foreign currency');
+	});
+
+	test('convertWithRates reuses an already-fetched quote', () => {
+		const rates = {
+			source: 'https://example.com',
+			date: '2025-01-06',
+			rates: {
+				KRW: {
+					name: 'Won',
+					nameJa: 'Won',
+					unit: 100,
+					tts: 11,
+					ttb: 10,
+					ttm: 10.5,
+				},
+			},
+		};
+		expect(convertWithRates(rates, {
+			amount: 1000,
+			from: 'krw',
+			to: 'JPY',
+		})).toStrictEqual({
+			source: 'https://example.com',
+			sourceDate: '2025-01-06',
+			amount: 1000,
+			from: 'KRW',
+			to: 'JPY',
+			rate: 'ttm',
+			rateValue: 10.5,
+			unit: 100,
+			convertedAmount: 105,
+		});
+	});
+
+	test('rejects non-positive rates instead of returning Infinity', () => {
+		const rates = {
+			source: 'https://example.com',
+			date: '2025-01-06',
+			rates: {
+				USD: {
+					name: 'US Dollar',
+					nameJa: 'US Dollar',
+					unit: 1,
+					tts: 0,
+					ttb: 0,
+					ttm: 0,
+				},
+			},
+		};
+		expect(() => convertWithRates(rates, {
+			amount: 100,
+			from: 'JPY',
+			to: 'USD',
+		})).toThrow('invalid TTM rate');
 	});
 });

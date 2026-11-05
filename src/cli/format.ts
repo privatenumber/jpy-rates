@@ -1,6 +1,6 @@
 import type { Ansis } from 'ansis';
 import type {
-	RatesResult, DailyResult, MonthlyResult, YearlyResult, WorldResult,
+	RateValues, RatesResult, DailyResult, MonthlyResult, YearlyResult, WorldResult,
 	ReferenceResult, ArchiveResult, ConvertCurrencyResult,
 } from '../api/types.ts';
 import { formatTable } from './format-table.ts';
@@ -28,36 +28,64 @@ const rateColumns = [
 	},
 ];
 
-export const formatRates = (result: RatesResult, style: Ansis): string => {
-	const rows = Object.entries(result.rates).map(([code, rate]) => [
-		style.bold(code),
-		rate.name,
-		fmtRate(style, rate.tts),
-		fmtRate(style, rate.ttb),
-		fmtRate(style, rate.ttm),
-	]);
-
-	return [
-		style.bold(result.date),
-		'',
-		formatTable(rateColumns, rows, style),
-	].join('\n');
+type RateEntry = {
+	name: string;
+	unit: number;
 };
 
-export const formatDaily = (result: DailyResult, style: Ansis): string => {
-	const rateRows = Object.entries(result.rates).map(([code, rate]) => [
-		style.bold(code),
-		rate.name,
-		fmtRate(style, rate.tts),
-		fmtRate(style, rate.ttb),
-		fmtRate(style, rate.ttm),
-	]);
+const unitFootnote = '* per 100 units';
 
+// Marks per-100-unit quotes (e.g. KRW, IDR) so they are not misread as per-unit rates
+const formatRateTable = <T extends RateEntry>(
+	rates: Record<string, T>,
+	getValues: (rate: T) => RateValues,
+	style: Ansis,
+): { table: string;
+	hasUnitFootnote: boolean; } => {
+	let hasUnitFootnote = false;
+	const rows = Object.entries(rates).map(([code, rate]) => {
+		if (rate.unit === 100) {
+			hasUnitFootnote = true;
+		}
+		const values = getValues(rate);
+		return [
+			style.bold(rate.unit === 100 ? `${code}*` : code),
+			rate.name,
+			fmtRate(style, values.tts),
+			fmtRate(style, values.ttb),
+			fmtRate(style, values.ttm),
+		];
+	});
+
+	return {
+		table: formatTable(rateColumns, rows, style),
+		hasUnitFootnote,
+	};
+};
+
+export const formatRates = (result: RatesResult, style: Ansis): string => {
+	const { table, hasUnitFootnote } = formatRateTable(result.rates, rate => rate, style);
 	const sections = [
 		style.bold(result.date),
 		'',
-		formatTable(rateColumns, rateRows, style),
+		table,
 	];
+	if (hasUnitFootnote) {
+		sections.push('', style.dim(unitFootnote));
+	}
+	return sections.join('\n');
+};
+
+export const formatDaily = (result: DailyResult, style: Ansis): string => {
+	const { table, hasUnitFootnote } = formatRateTable(result.rates, rate => rate, style);
+	const sections = [
+		style.bold(result.date),
+		'',
+		table,
+	];
+	if (hasUnitFootnote) {
+		sections.push('', style.dim(unitFootnote));
+	}
 
 	const cashEntries = Object.entries(result.cashRates);
 	if (cashEntries.length > 0) {
@@ -103,39 +131,24 @@ export const formatConversion = (result: ConvertCurrencyResult, style: Ansis): s
 
 export const formatMonthly = (result: MonthlyResult, style: Ansis): string => {
 	const monthString = `${result.year}-${String(result.month).padStart(2, '0')}`;
-	let hasUnitFootnote = false;
+	const monthEnd = formatRateTable(result.rates, rate => rate.monthEnd, style);
+	const monthlyAverage = formatRateTable(result.rates, rate => rate.monthlyAverage, style);
 
-	const buildRows = (
-		getRates: (rate: MonthlyResult['rates'][string]) => { tts: number | null;
-			ttb: number | null;
-			ttm: number | null; },
-	) => Object.entries(result.rates).map(([code, rate]) => {
-		const displayCode = rate.unit === 100 ? `${code}*` : code;
-		if (rate.unit === 100) {
-			hasUnitFootnote = true;
-		}
-		const rateValues = getRates(rate);
-		return [
-			style.bold(displayCode),
-			rate.name,
-			fmtRate(style, rateValues.tts),
-			fmtRate(style, rateValues.ttb),
-			fmtRate(style, rateValues.ttm),
-		];
-	});
+	const sections = [style.bold(monthString)];
+	// Empty when `--currency` selects only a local market rate
+	if (Object.keys(result.rates).length > 0) {
+		sections.push(
+			'',
+			style.dim('Month-End'),
+			monthEnd.table,
+			'',
+			style.dim('Monthly Average'),
+			monthlyAverage.table,
+		);
+	}
 
-	const sections = [
-		style.bold(monthString),
-		'',
-		style.dim('Month-End'),
-		formatTable(rateColumns, buildRows(rate => rate.monthEnd), style),
-		'',
-		style.dim('Monthly Average'),
-		formatTable(rateColumns, buildRows(rate => rate.monthlyAverage), style),
-	];
-
-	if (hasUnitFootnote) {
-		sections.push('', style.dim('* per 100 units'));
+	if (monthEnd.hasUnitFootnote) {
+		sections.push('', style.dim(unitFootnote));
 	}
 
 	const localEntries = Object.entries(result.localMarketRates);
@@ -150,12 +163,17 @@ export const formatMonthly = (result: MonthlyResult, style: Ansis): string => {
 				header: 'Buying',
 				align: 'right' as const,
 			},
+			{
+				header: 'Rate',
+				align: 'right' as const,
+			},
 			{ header: 'Source' },
 		];
 		const localRows = localEntries.map(([code, rate]) => [
 			style.bold(code),
 			fmtRate(style, rate.selling, 4),
 			fmtRate(style, rate.buying, 4),
+			fmtRate(style, rate.rate, 4),
 			rate.source,
 		]);
 		sections.push('', style.dim('Local Market Rates'), formatTable(localColumns, localRows, style));
@@ -165,39 +183,21 @@ export const formatMonthly = (result: MonthlyResult, style: Ansis): string => {
 };
 
 export const formatYearly = (result: YearlyResult, style: Ansis): string => {
-	let hasUnitFootnote = false;
-
-	const buildRows = (
-		getRates: (rate: YearlyResult['rates'][string]) => { tts: number | null;
-			ttb: number | null;
-			ttm: number | null; },
-	) => Object.entries(result.rates).map(([code, rate]) => {
-		const displayCode = rate.unit === 100 ? `${code}*` : code;
-		if (rate.unit === 100) {
-			hasUnitFootnote = true;
-		}
-		const rateValues = getRates(rate);
-		return [
-			style.bold(displayCode),
-			rate.name,
-			fmtRate(style, rateValues.tts),
-			fmtRate(style, rateValues.ttb),
-			fmtRate(style, rateValues.ttm),
-		];
-	});
+	const yearEnd = formatRateTable(result.rates, rate => rate.yearEnd, style);
+	const yearlyAverage = formatRateTable(result.rates, rate => rate.yearlyAverage, style);
 
 	const sections = [
 		style.bold(String(result.year)),
 		'',
 		style.dim('Year-End'),
-		formatTable(rateColumns, buildRows(rate => rate.yearEnd), style),
+		yearEnd.table,
 		'',
 		style.dim('Yearly Average'),
-		formatTable(rateColumns, buildRows(rate => rate.yearlyAverage), style),
+		yearlyAverage.table,
 	];
 
-	if (hasUnitFootnote) {
-		sections.push('', style.dim('* per 100 units'));
+	if (yearEnd.hasUnitFootnote) {
+		sections.push('', style.dim(unitFootnote));
 	}
 
 	return sections.join('\n');
@@ -295,20 +295,27 @@ export const formatArchive = (result: ArchiveResult, style: Ansis): string => {
 		},
 	];
 
+	let hasUnitFootnote = false;
 	const rows = Object.entries(result.currencies).map(([code, currency]) => {
+		if (currency.unit === 100) {
+			hasUnitFootnote = true;
+		}
 		const { high, low, average } = currency.annual;
-		const isEmpty = high === 0 && low === 0 && average === 0;
 		return [
-			style.bold(code),
-			isEmpty ? style.dim('—') : high.toFixed(2),
-			isEmpty ? style.dim('—') : low.toFixed(2),
-			isEmpty ? style.dim('—') : average.toFixed(2),
+			style.bold(currency.unit === 100 ? `${code}*` : code),
+			fmtRate(style, high),
+			fmtRate(style, low),
+			fmtRate(style, average),
 		];
 	});
 
-	return [
+	const sections = [
 		style.bold(String(result.year)),
 		'',
 		formatTable(columns, rows, style),
-	].join('\n');
+	];
+	if (hasUnitFootnote) {
+		sections.push('', style.dim(unitFootnote));
+	}
+	return sections.join('\n');
 };

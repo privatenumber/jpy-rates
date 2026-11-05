@@ -1,9 +1,9 @@
 import { parseHTML } from 'linkedom';
-import type { YearlyRate, YearlyResult } from './types.ts';
+import type { FetchOptions, YearlyRate, YearlyResult } from './types.ts';
 import {
-	parseRate, computeTtm, parseUnit, cleanCellText,
+	parseRate, computeTtm, parseUnit, cleanCellText, getTodayInJapan,
 } from './utils.ts';
-import { fetchShiftJisHtml } from './fetch-source.ts';
+import { fetchShiftJisHtml, unexpectedPageError } from './fetch-source.ts';
 
 const columnsPerRow = 9;
 
@@ -43,25 +43,38 @@ const parseTable = (table: Element): Record<string, YearlyRate> => {
 	return rates;
 };
 
-export const fetchYearly = async (year: number): Promise<YearlyResult | null> => {
-	if (year < 2003) { return null; }
+const earliestYear = 2003;
+
+/**
+ * Fetch year-end rates and yearly averages.
+ *
+ * Throws a RangeError for non-integer years, years before 2003, and future years.
+ * Returns null when the year has no published data yet.
+ */
+export const fetchYearly = async (
+	year: number,
+	options: FetchOptions = {},
+): Promise<YearlyResult | null> => {
+	const currentYear = getTodayInJapan().getUTCFullYear();
+	if (!Number.isInteger(year) || year < earliestYear || year > currentYear) {
+		throw new RangeError(`Year ${year} is outside the available range (${earliestYear} to ${currentYear})`);
+	}
 
 	const yearEndUrl = `https://www.murc-kawasesouba.jp/fx/yearend/index.php?id=${year}`;
-	let html = await fetchShiftJisHtml(yearEndUrl);
+	let html = await fetchShiftJisHtml(yearEndUrl, options);
 	let source = yearEndUrl;
 
 	if (!html) {
 		// Fallback: year_average.php shows the most recently completed year.
 		// Only use it if the requested year matches what the page actually contains.
 		const yearAverageUrl = 'https://www.murc-kawasesouba.jp/fx/year_average.php';
-		html = await fetchShiftJisHtml(yearAverageUrl);
+		html = await fetchShiftJisHtml(yearAverageUrl, options);
 		if (html) {
 			source = yearAverageUrl;
 			const { document } = parseHTML(html);
-			const heading = document.querySelector('h2');
-			const headingText = heading?.textContent ?? '';
+			const headingText = document.querySelector('h2')?.textContent ?? '';
 			// Heading contains the year like "2025年末及び年間平均"
-			if (!headingText.includes(String(year))) {
+			if (!headingText.includes(`${year}年`)) {
 				return null;
 			}
 		}
@@ -71,9 +84,14 @@ export const fetchYearly = async (year: number): Promise<YearlyResult | null> =>
 
 	const { document } = parseHTML(html);
 	const table = document.querySelector('table.data-table7');
-	if (!table) { return null; }
+	if (!table) {
+		throw unexpectedPageError(source, 'missing rate table');
+	}
 
 	const rates = parseTable(table);
+	if (Object.keys(rates).length === 0) {
+		throw unexpectedPageError(source, 'empty rate table');
+	}
 
 	return {
 		source,

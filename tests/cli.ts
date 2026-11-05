@@ -1,4 +1,6 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import {
+	mkdtemp, readFile, rm, writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, test, expect } from 'manten';
@@ -241,5 +243,71 @@ describe('cli', () => {
 				force: true,
 			});
 		}
+	});
+
+	test('--currency is case-insensitive and marks per-100-unit quotes', async () => {
+		const stdout = await cli(['rates', '2025-01-06', '-c', 'krw']);
+		expect(stdout).toContain('KRW*');
+		expect(stdout).toContain('* per 100 units');
+		expect(stdout).not.toContain('USD');
+	});
+
+	test('monthly --currency filters local market rates too', async () => {
+		const usd = JSON.parse(await cli(['monthly', '2026', '1', '-c', 'USD', '--json']));
+		expect(Object.keys(usd.rates)).toStrictEqual(['USD']);
+		expect(usd.localMarketRates).toStrictEqual({});
+
+		const twd = JSON.parse(await cli(['monthly', '2026', '1', '-c', 'TWD', '--json']));
+		expect(twd.rates).toStrictEqual({});
+		expect(Object.keys(twd.localMarketRates)).toStrictEqual(['TWD']);
+	});
+
+	test('rejects unknown flags', async () => {
+		const result = await cliResult(['rates', '2025-01-06', '--jsno']).catch(error => error);
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toContain('--jsno');
+	});
+
+	test('rejects invalid monthly arguments before requesting', async () => {
+		const result = await cliResult(['monthly', 'abc', '1']).catch(error => error);
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toContain('Invalid year and month');
+	});
+
+	test('download-source refuses to overwrite without --force', async () => {
+		const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'murc-rates-'));
+		try {
+			const outputPath = path.join(temporaryDirectory, 'existing.xls');
+			await writeFile(outputPath, 'keep');
+
+			const result = await cliResult(['download-source', '2025', '-o', outputPath]).catch(error => error);
+			expect(result.exitCode).toBe(1);
+			expect(result.stderr).toContain('already exists');
+			expect(await readFile(outputPath, 'utf8')).toBe('keep');
+
+			await cli(['download-source', '2025', '-o', outputPath, '--force']);
+			expect(await readFile(outputPath, 'utf8')).not.toBe('keep');
+		} finally {
+			await rm(temporaryDirectory, {
+				recursive: true,
+				force: true,
+			});
+		}
+	});
+
+	test('piped output has no colors even when COLORTERM is set', async () => {
+		const result = await spawn(process.execPath, [
+			...fixtureImportArguments,
+			'src/cli/index.ts',
+			'rates',
+			'2025-01-06',
+		], {
+			env: {
+				...process.env,
+				COLORTERM: 'truecolor',
+				FORCE_COLOR: undefined,
+			},
+		});
+		expect(result.stdout).not.toContain('\u001B[');
 	});
 });

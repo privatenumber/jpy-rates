@@ -12,6 +12,14 @@ describe('fetchReference', () => {
 		expect(twd!.rates.perJpy!.length).toBeGreaterThan(0);
 	});
 
+	test('perJpyUnit reflects each column\'s JPY quote basis', async () => {
+		const result = await fetchReference(2025);
+		expect(result!.currencies.CNY!.perJpyUnit).toBe(100);
+		expect(result!.currencies.TWD!.perJpyUnit).toBe(1);
+		expect(result!.currencies.MYR!.perJpyUnit).toBe(100);
+		expect(result!.currencies.BRL!.perJpyUnit).toBeNull();
+	});
+
 	test('BRL has perUsd but no perJpy', async () => {
 		const result = await fetchReference(2025);
 		const brl = result!.currencies.BRL;

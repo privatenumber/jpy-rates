@@ -113,4 +113,17 @@ describe('fetchWorld', () => {
 		expect(noRate).toBeDefined();
 		expect(noRate!.marketLevel).toBe('');
 	});
+
+	if (!process.env.MUFG_LIVE) {
+		test('parses escaped quotes and quoted newlines per RFC 4180', async () => {
+			const result = await fetchWorld();
+			const quoted = result.asia.find(entry => entry.code === 'QTD');
+			expect(quoted).toMatchObject({
+				country: 'Quoted "Name" asia',
+				marketLevel: '2.5',
+				remarks: 'multi-line\nremark, with comma',
+			});
+			expect(result.asia).toHaveLength(3);
+		});
+	}
 });

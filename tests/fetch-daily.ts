@@ -56,4 +56,22 @@ describe('fetchDaily', () => {
 		expect(result!.rates.USD.tts).toBeGreaterThan(0);
 		expect(Object.keys(result!.cashRates)).toHaveLength(0);
 	});
+
+	test('uses the date from the source page heading for today', async () => {
+		const result = await fetchDaily();
+		if (!process.env.MUFG_LIVE) {
+			expect(result!.date).toBe('2026-05-18');
+		}
+	});
+
+	test('rejects dates whose two-digit page ID aliases another century', async () => {
+		await expect(fetchDaily('1925-01-06')).rejects.toThrow(RangeError);
+		await expect(fetchDaily('2005-08-31')).rejects.toThrow('before the earliest available date');
+	});
+
+	if (!process.env.MUFG_LIVE) {
+		test('throws when the source page is dated differently than requested', async () => {
+			await expect(fetchDaily('2025-01-08')).rejects.toThrow('dated 2015-01-08, expected 2025-01-08');
+		});
+	}
 });

@@ -3,7 +3,7 @@ import {
 	fetchXls, getSheet, sheetToRows, type CellValue, type Row,
 } from './parse-xls.ts';
 import type {
-	ReferenceDailyRate, ReferenceMonthlySummary, ReferenceCurrency, ReferenceResult,
+	FetchOptions, ReferenceDailyRate, ReferenceMonthlySummary, ReferenceCurrency, ReferenceResult,
 } from './types.ts';
 
 type CurrencyConfig = {
@@ -126,6 +126,18 @@ const parseSourceJa = (rows: Row[], config: CurrencyConfig): string => {
 	return '';
 };
 
+// Row 2 labels each column's quote basis: "PER US$", "PER YEN", or "PER \\100" (per 100 JPY)
+const parsePerJpyUnit = (rows: Row[], config: CurrencyConfig): number | null => {
+	if (!config.perJpy) {
+		return null;
+	}
+	const label = rows[2]?.[config.perJpy.ttsColumn];
+	if (typeof label !== 'string') {
+		return null;
+	}
+	return /100/.test(label) ? 100 : 1;
+};
+
 const parseDailyRates = (
 	rows: Row[],
 	year: number,
@@ -218,6 +230,7 @@ const processAllCurrencies = (
 	const accumulators = configs.map(config => ({
 		config,
 		sourceJa: parseSourceJa(firstSheetRows, config),
+		perJpyUnit: parsePerJpyUnit(firstSheetRows, config),
 		perUsdRates: [] as ReferenceDailyRate[],
 		perJpyRates: [] as ReferenceDailyRate[],
 		monthlySummary: [] as ReferenceMonthlySummary[],
@@ -270,6 +283,7 @@ const processAllCurrencies = (
 		}
 		currencies[accumulator.config.code] = {
 			sourceJa: accumulator.sourceJa,
+			perJpyUnit: rates.perJpy ? accumulator.perJpyUnit : null,
 			rates,
 			monthlySummary: accumulator.monthlySummary,
 		};
@@ -277,9 +291,9 @@ const processAllCurrencies = (
 	return currencies;
 };
 
-const tryFetchXls = async (url: string): Promise<WorkBook | null> => {
+const tryFetchXls = async (url: string, options: FetchOptions): Promise<WorkBook | null> => {
 	try {
-		return await fetchXls(url);
+		return await fetchXls(url, options);
 	} catch (error) {
 		// 404: file doesn't exist for this year (e.g., b_2007.xls)
 		if (error instanceof Error && error.message.includes('HTTP 404')) {
@@ -289,13 +303,20 @@ const tryFetchXls = async (url: string): Promise<WorkBook | null> => {
 	}
 };
 
-export const fetchReference = async (year: number): Promise<ReferenceResult | null> => {
+export const fetchReference = async (
+	year: number,
+	options: FetchOptions = {},
+): Promise<ReferenceResult | null> => {
+	if (!Number.isInteger(year)) {
+		throw new RangeError(`Invalid year: ${year}`);
+	}
+
 	const urlA = `https://www.murc-kawasesouba.jp/fx/ref_rate/a_${year}.xls`;
 	const urlB = `https://www.murc-kawasesouba.jp/fx/ref_rate/b_${year}.xls`;
 
 	const [workbookA, workbookB] = await Promise.all([
-		tryFetchXls(urlA),
-		tryFetchXls(urlB),
+		tryFetchXls(urlA, options),
+		tryFetchXls(urlB, options),
 	]);
 
 	if (!workbookA && !workbookB) {

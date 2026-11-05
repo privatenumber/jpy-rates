@@ -1,19 +1,28 @@
+import type { FetchOptions } from './types.ts';
+
 const userAgent = 'murc-rates (+https://www.npmjs.com/package/murc-rates)';
 const requestTimeoutMilliseconds = 30_000;
 const maxRetries = 2;
 
-export const fetchSource = async (url: string): Promise<Response> => {
+export const fetchSource = async (
+	url: string,
+	{ signal }: FetchOptions = {},
+): Promise<Response> => {
 	let lastError: unknown;
 	for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+		signal?.throwIfAborted();
+		const timeout = AbortSignal.timeout(requestTimeoutMilliseconds);
 		try {
 			return await fetch(url, {
 				headers: {
 					'user-agent': userAgent,
 				},
 				redirect: 'manual',
-				signal: AbortSignal.timeout(requestTimeoutMilliseconds),
+				signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
 			});
 		} catch (error) {
+			// A caller abort stops retrying; network errors and attempt timeouts retry
+			signal?.throwIfAborted();
 			lastError = error;
 		}
 	}
@@ -23,12 +32,27 @@ export const fetchSource = async (url: string): Promise<Response> => {
 		: new Error('Request failed after retries');
 };
 
-// Fetch Shift_JIS HTML page, return null on 301/302 (non-business day redirect).
-// Throws on other non-2xx statuses (server errors should not be silently ignored).
-export const fetchShiftJisHtml = async (url: string): Promise<string | null> => {
-	const response = await fetchSource(url);
+// The source redirects requests for dates without published rates
+// (weekends, holidays, unpublished or out-of-range dates) to these pages.
+const noDataRedirectPaths = new Set([
+	'/fx/index.php',
+	'/fx/past_3month.php',
+]);
+
+// Fetch a Shift_JIS HTML page. Returns null when the source redirects to a known
+// "no data" page. Throws on any other non-2xx response, including unexpected
+// redirects such as maintenance pages, so they are not mistaken for holidays.
+export const fetchShiftJisHtml = async (
+	url: string,
+	options?: FetchOptions,
+): Promise<string | null> => {
+	const response = await fetchSource(url, options);
 	if (response.status === 301 || response.status === 302) {
-		return null;
+		const location = response.headers.get('location');
+		if (location && noDataRedirectPaths.has(new URL(location, url).pathname)) {
+			return null;
+		}
+		throw new Error(`Unexpected redirect (HTTP ${response.status}) to ${location ?? 'unknown location'}: ${url}`);
 	}
 
 	if (response.status < 200 || response.status >= 300) {
@@ -38,3 +62,7 @@ export const fetchShiftJisHtml = async (url: string): Promise<string | null> => 
 	const buffer = await response.arrayBuffer();
 	return new TextDecoder('shift_jis').decode(buffer);
 };
+
+export const unexpectedPageError = (url: string, detail: string): Error => new Error(
+	`Unexpected page structure (${detail}): ${url}`,
+);

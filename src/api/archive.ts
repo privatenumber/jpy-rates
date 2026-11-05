@@ -3,11 +3,13 @@ import {
 } from './parse-xls.ts';
 import { fetchSource } from './fetch-source.ts';
 import type {
-	ArchiveDailyRate, ArchiveMonthlySummary, ArchiveAnnualSummary, ArchiveCurrency, ArchiveResult,
+	FetchOptions, ArchiveDailyRate, ArchiveMonthlySummary, ArchiveAnnualSummary,
+	ArchiveCurrency, ArchiveResult,
 } from './types.ts';
 
 type CurrencyInfo = {
 	code: string;
+	unit: number;
 	ttsColumn: number;
 };
 
@@ -26,16 +28,20 @@ export const getArchiveSourceUrl = (year: number): string => {
 	return `https://www.murc-kawasesouba.jp/fx/xls/murc_${year}.xls`;
 };
 
-export const downloadArchiveSource = async (year: number): Promise<ArrayBuffer> => {
+export const downloadArchiveSource = async (
+	year: number,
+	options: FetchOptions = {},
+): Promise<ArrayBuffer> => {
 	const url = getArchiveSourceUrl(year);
-	const response = await fetchSource(url);
+	const response = await fetchSource(url, options);
 	if (response.status < 200 || response.status >= 300) {
 		throw new Error(`HTTP ${response.status}: ${url}`);
 	}
 	return response.arrayBuffer();
 };
 
-const parseCurrencyList = (headerRow: Row): CurrencyInfo[] => {
+// Row 0 names each currency; row 1 notes "100通貨単位につき" for currencies quoted per 100 units
+const parseCurrencyList = (headerRow: Row, noteRow: Row = []): CurrencyInfo[] => {
 	const currencies: CurrencyInfo[] = [];
 	for (let column = 2; column < headerRow.length; column += 3) {
 		const cell = headerRow[column];
@@ -44,8 +50,10 @@ const parseCurrencyList = (headerRow: Row): CurrencyInfo[] => {
 		}
 		const match = cell.match(/[（(]([A-Z]{3})[）)]/);
 		if (match) {
+			const note = noteRow[column];
 			currencies.push({
 				code: match[1]!,
+				unit: typeof note === 'string' && note.includes('100通貨単位') ? 100 : 1,
 				ttsColumn: column,
 			});
 		}
@@ -112,6 +120,12 @@ const inferArchiveYear = (dailyMap: Map<string, ArchiveDailyRate[]>): number => 
 	throw new Error('Could not infer archive year from workbook dates');
 };
 
+const emptyAnnualSummary = (): ArchiveAnnualSummary => ({
+	high: null,
+	low: null,
+	average: null,
+});
+
 const parseSummaryLabel = (text: string): 'high' | 'low' | 'average' | null => {
 	const label = text.replaceAll(/[※*]/gu, '');
 	if (label === '高値' || label === '最高値') { return 'high'; }
@@ -151,11 +165,7 @@ const parseMonthlySummarySheet = (
 	const annualMap = new Map<string, ArchiveAnnualSummary>();
 	for (const currency of currencies) {
 		monthlyMap.set(currency.code, []);
-		annualMap.set(currency.code, {
-			high: 0,
-			low: 0,
-			average: 0,
-		});
+		annualMap.set(currency.code, emptyAnnualSummary());
 	}
 
 	// 月毎 sheet: rows are grouped by month (3 rows each: 高値, 安値, 平均)
@@ -288,9 +298,9 @@ const parseAverageAnnualSection = (
 
 	for (const currency of currencies) {
 		annualMap.set(currency.code, {
-			high: annualHighMap.get(currency.code) ?? 0,
-			low: annualLowMap.get(currency.code) ?? 0,
-			average: annualAverageMap.get(currency.code) ?? 0,
+			high: annualHighMap.get(currency.code) ?? null,
+			low: annualLowMap.get(currency.code) ?? null,
+			average: annualAverageMap.get(currency.code) ?? null,
 		});
 	}
 };
@@ -304,11 +314,7 @@ const parseAverageSummarySheet = (
 	const annualMap = new Map<string, ArchiveAnnualSummary>();
 	for (const currency of currencies) {
 		monthlyMap.set(currency.code, []);
-		annualMap.set(currency.code, {
-			high: 0,
-			low: 0,
-			average: 0,
-		});
+		annualMap.set(currency.code, emptyAnnualSummary());
 	}
 
 	// TTS positions in average sheet: 1, 4, 7, 10, ... (every 3 starting at 1)
@@ -324,7 +330,8 @@ const parseAverageSummarySheet = (
 		const cell0 = row[0];
 
 		if (typeof cell0 === 'number') {
-			// Monthly average row — determine month from date serial
+			// Monthly average row — determine month from date serial.
+			// These workbooks publish only averages, so high and low are unavailable.
 			const dateString = excelDateToIso(cell0);
 			const month = Number(dateString.split('-')[1]);
 
@@ -332,8 +339,8 @@ const parseAverageSummarySheet = (
 			for (const [code, average] of rowValues) {
 				monthlyMap.get(code)!.push({
 					month,
-					high: average,
-					low: average,
+					high: null,
+					low: null,
 					average,
 				});
 			}
@@ -358,7 +365,7 @@ export const parseArchiveWorkbook = async (
 	// Parse data sheet for daily rates and currency list
 	const dataSheet = getSheet(workbook, 'data');
 	const dataRows = sheetToRows(dataSheet);
-	const currencies = parseCurrencyList(dataRows[0]!);
+	const currencies = parseCurrencyList(dataRows[0]!, dataRows[1]);
 	const dailyMap = parseDailyData(dataRows, currencies);
 	const year = inferArchiveYear(dailyMap);
 
@@ -399,18 +406,15 @@ export const parseArchiveWorkbook = async (
 	const currencyRecords: Record<string, ArchiveCurrency> = {};
 	for (const currency of currencies) {
 		currencyRecords[currency.code] = {
+			unit: currency.unit,
 			daily: dailyMap.get(currency.code) ?? [],
 			monthly: summaryResult.monthly.get(currency.code) ?? [],
-			annual: summaryResult.annual.get(currency.code) ?? {
-				high: 0,
-				low: 0,
-				average: 0,
-			},
+			annual: summaryResult.annual.get(currency.code) ?? emptyAnnualSummary(),
 		};
 	}
 
 	return {
-		source: options.sourceUrl ?? getArchiveSourceUrl(year),
+		source: options.sourceUrl ?? null,
 		year,
 		currencies: currencyRecords,
 	};

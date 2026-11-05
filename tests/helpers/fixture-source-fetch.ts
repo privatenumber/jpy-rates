@@ -86,22 +86,37 @@ const rateSummaryRows = (includeNewerCurrencies = true): (string | number | null
 	return rows;
 };
 
+// Mirrors source quirks: quote-date prefixes, comma-grouped values, and merged single-rate cells
 const localMarketTable = () => `
 	<table class="data-table7">
-		<tr><td>Synthetic Taiwan</td><td>TWD Synthetic dollar</td><td>31.50</td><td>31.10</td><td>Synthetic Branch</td><td>Synthetic Source</td></tr>
-		<tr><td>Synthetic China</td><td>CNY Synthetic yuan</td><td colspan="2">unquoted</td><td>Synthetic Center</td><td>Synthetic Source</td></tr>
+		<tr><td>Synthetic Taiwan</td><td>TWD Synthetic dollar</td><td>(1/24)31.50</td><td>(1/24)31.10</td><td>Synthetic Branch</td><td>Synthetic Source</td></tr>
+		<tr><td>Synthetic Indonesia</td><td>IDR Synthetic rupiah</td><td>16,550</td><td>15,950</td><td>Synthetic Branch</td><td>Synthetic Source</td></tr>
+		<tr><td>Synthetic China</td><td>CNY Synthetic yuan</td><td colspan="2">(12/31)7.1698</td><td>Synthetic Center</td><td>Synthetic Source</td></tr>
+		<tr><td>Synthetic Hong Kong</td><td>HKD Synthetic dollar</td><td colspan="2">unquoted</td><td>Synthetic Center</td><td>Synthetic Source</td></tr>
 	</table>
 `;
 
-const dailyHtml = (className = 'data-table7', includeCash = true) => (
-	table(className, dailyRows())
+// Encodes "YYYY年M月D日" with HTML entities so the fixture stays ASCII
+const dateHeading = (date: string) => {
+	const [year, month, day] = date.split('-').map(Number);
+	return `<h2>${year}&#24180;${month}&#26376;${day}&#26085;</h2>`;
+};
+
+const dailyHtml = (date: string, className = 'data-table7', includeCash = true) => (
+	dateHeading(date)
+	+ table(className, dailyRows())
 	+ (includeCash ? table(className, cashRows()) : '')
 );
 
+// The source redirects dates without published data to these pages
+const noDataRedirect = (location: string) => new Response(null, {
+	status: 302,
+	headers: { location },
+});
+
 const todayHtml = () => `
 	<main>
-		<h1>2026&#24180;5&#26376;18&#26085;</h1>
-		${dailyHtml('data-table5')}
+		${dailyHtml('2026-05-18', 'data-table5')}
 	</main>
 `;
 
@@ -130,6 +145,8 @@ const worldCsv = (region: string) => {
 		'Country,CountryJa,Currency,Code,Quotation,MarketLevel,Remarks',
 		`Fictional ${region},&#12471;&#12531;&#12475;,Synthetic Currency,SYN,per USD,1.2345,uses &amp; entity`,
 		`No Rate ${region},Synthetic no-rate,,,,"",No published local level`,
+		`"Quoted ""Name"" ${region}",Synthetic quoted,Synthetic Currency,QTD,per USD,2.5,"multi-line
+remark, with comma"`,
 	];
 	return new Response(`${rows.join('\n')}\n`);
 };
@@ -190,9 +207,16 @@ const archiveDataRows = (year: number, currencies: ArchiveCurrency[]) => {
 		header[2 + index * 3] = currency.label;
 	}
 
+	const noteRow: (string | number | null)[] = [];
+	for (const [index, currency] of currencies.entries()) {
+		if (currency.code === 'KRW') {
+			noteRow[2 + index * 3] = '100\u901A\u8CA8\u5358\u4F4D\u306B\u3064\u304D';
+		}
+	}
+
 	const rows: (string | number | null)[][] = [
 		header,
-		[],
+		noteRow,
 		[],
 	];
 
@@ -451,9 +475,22 @@ const referenceMonthRows = (
 		sourceRow[config.sourceColumn] = `Synthetic ${config.code} Source`;
 	}
 
+	// Row 2 labels each column's quote basis, as in the source workbooks
+	const basisRow: (string | number | null)[] = [];
+	for (const config of configs) {
+		if (config.perUsd) {
+			basisRow[config.perUsd.ttsColumn] = 'PER US$';
+		}
+		if (config.perJpy) {
+			basisRow[config.perJpy.ttsColumn] = config.code === 'TWD' ? 'PER YEN ' : String.raw`PER \100`;
+		}
+	}
+
 	const rows: (string | number | null)[][] = [
 		[],
 		sourceRow,
+		basisRow,
+		[],
 	];
 
 	for (const day of [1, 2]) {
@@ -504,9 +541,23 @@ export const createFixtureFetch = (): typeof fetch => async (input) => {
 		|| url.includes('past_3month_result.php?y=2025&m=1&d=2')
 		|| url.includes('past_3month_result.php?y=2025&m=1&d=1')
 		|| url.includes('past_3month_result.php?y=2024&m=12&d=31')) {
-		return new Response(null, { status: 302 });
+		return noDataRedirect('past_3month.php?caution=1');
 	}
 	if (url.includes('past_3month_result.php?y=2024&m=12&d=30')) {
+		return new Response(table('data-table5', searchRows()));
+	}
+	// Unexpected source responses must not be mistaken for holidays
+	if (url.includes('past_3month_result.php?y=2025&m=2&d=12')) {
+		return noDataRedirect('/maintenance.html');
+	}
+	if (url.includes('past_3month_result.php?y=2025&m=2&d=13')) {
+		return new Response('<p>Under maintenance</p>');
+	}
+	// 2019 Golden Week: banks closed Apr 27 - May 6 (ten days)
+	if (/past_3month_result\.php\?y=2019&m=(?:4&d=(?:2[7-9]|30)|5&d=[1-6])$/.test(url)) {
+		return noDataRedirect('past_3month.php?caution=1');
+	}
+	if (url.includes('past_3month_result.php?y=2019&m=4&d=26')) {
 		return new Response(table('data-table5', searchRows()));
 	}
 	if (url.includes('past_3month_result.php?y=1990&m=1&d=4')) {
@@ -517,20 +568,24 @@ export const createFixtureFetch = (): typeof fetch => async (input) => {
 	}
 
 	if (url.includes('past/index.php?id=250106')) {
-		return new Response(dailyHtml());
+		return new Response(dailyHtml('2025-01-06'));
 	}
 	if (url.includes('past/index.php?id=250104')
 		|| url.includes('past/index.php?id=250103')
 		|| url.includes('past/index.php?id=250102')
 		|| url.includes('past/index.php?id=250101')
 		|| url.includes('past/index.php?id=241231')) {
-		return new Response(null, { status: 302 });
+		return noDataRedirect('../index.php');
+	}
+	// A page whose heading does not match its requested date
+	if (url.includes('past/index.php?id=250108')) {
+		return new Response(dailyHtml('2015-01-08'));
 	}
 	if (url.includes('past/index.php?id=241230')) {
-		return new Response(dailyHtml());
+		return new Response(dailyHtml('2024-12-30'));
 	}
 	if (url.includes('past/index.php?id=060104')) {
-		return new Response(dailyHtml('data-table7', false));
+		return new Response(dailyHtml('2006-01-04', 'data-table7', false));
 	}
 	if (url.includes('fx/index.php')) {
 		return new Response(todayHtml());
@@ -538,9 +593,6 @@ export const createFixtureFetch = (): typeof fetch => async (input) => {
 
 	if (url.includes('monthend/index.php?id=2601')) {
 		return new Response(monthlyHtml());
-	}
-	if (url.includes('monthend/index.php?id=0401')) {
-		return new Response(null, { status: 302 });
 	}
 
 	if (url.includes('yearend/index.php?id=2024')) {
@@ -550,7 +602,7 @@ export const createFixtureFetch = (): typeof fetch => async (input) => {
 		|| url.includes('yearend/index.php?id=2002')
 		|| url.includes('yearend/index.php?id=2026')
 		|| url.includes('yearend/index.php?id=2030')) {
-		return new Response(null, { status: 302 });
+		return noDataRedirect('../index.php');
 	}
 	if (url.includes('yearend/index.php?id=2003')) {
 		return new Response(yearlyHtml(2003, false));

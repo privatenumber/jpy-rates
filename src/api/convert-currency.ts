@@ -2,13 +2,12 @@ import { fetchRates } from './fetch-rates.ts';
 import { formatDate, parseDate } from './utils.ts';
 import type {
 	ConvertCurrencyOptions, ConvertCurrencyResult, ConversionRateType,
+	ConvertWithRatesOptions, ConvertWithRatesResult, RatesResult,
 } from './types.ts';
 
 const supportedRateTypes = new Set<ConversionRateType>(['tts', 'ttb', 'ttm']);
 
-export const convertCurrency = async (
-	options: ConvertCurrencyOptions,
-): Promise<ConvertCurrencyResult | null> => {
+const normalizeOptions = (options: ConvertWithRatesOptions) => {
 	if (!Number.isFinite(options.amount)) {
 		throw new TypeError(`Invalid amount: ${options.amount}`);
 	}
@@ -21,21 +20,29 @@ export const convertCurrency = async (
 	}
 
 	const convertsFromJpy = from === 'JPY';
-	const jpyCurrencyCount = Number(convertsFromJpy) + Number(to === 'JPY');
-	if (jpyCurrencyCount !== 1) {
-		throw new Error('convertCurrency only supports conversions between JPY and one foreign currency');
+	if (Number(convertsFromJpy) + Number(to === 'JPY') !== 1) {
+		throw new Error('Conversion only supports JPY and one foreign currency');
 	}
 
-	const requestedDate = parseDate(options.date);
-	const ratesResult = await fetchRates(requestedDate);
-	if (!ratesResult) {
-		return null;
-	}
+	return {
+		amount: options.amount,
+		from,
+		to,
+		rate,
+		convertsFromJpy,
+	};
+};
 
-	const currency = convertsFromJpy
-		? to
-		: from;
-	const quote = ratesResult.rates[currency];
+const convert = (
+	ratesResult: RatesResult,
+	{
+		amount, from, to, rate, convertsFromJpy,
+	}: ReturnType<typeof normalizeOptions>,
+): ConvertWithRatesResult => {
+	const currency = convertsFromJpy ? to : from;
+	const quote = Object.hasOwn(ratesResult.rates, currency)
+		? ratesResult.rates[currency]
+		: undefined;
 	if (!quote) {
 		throw new Error(`Currency ${currency} not found in rates for ${ratesResult.date}`);
 	}
@@ -44,21 +51,48 @@ export const convertCurrency = async (
 	if (rateValue === null) {
 		throw new Error(`Currency ${currency} has no ${rate.toUpperCase()} rate for ${ratesResult.date}`);
 	}
+	if (!Number.isFinite(rateValue) || rateValue <= 0) {
+		throw new Error(`Currency ${currency} has an invalid ${rate.toUpperCase()} rate (${rateValue}) for ${ratesResult.date}`);
+	}
 
 	const convertedAmount = convertsFromJpy
-		? (options.amount / rateValue) * quote.unit
-		: (options.amount * rateValue) / quote.unit;
+		? (amount / rateValue) * quote.unit
+		: (amount * rateValue) / quote.unit;
 
 	return {
 		source: ratesResult.source,
-		requestedDate: formatDate(requestedDate),
 		sourceDate: ratesResult.date,
-		amount: options.amount,
+		amount,
 		from,
 		to,
 		rate,
 		rateValue,
 		unit: quote.unit,
 		convertedAmount,
+	};
+};
+
+/**
+ * Convert between JPY and one foreign currency using an already-fetched
+ * `fetchRates()` result. Useful for converting many amounts with one quote.
+ */
+export const convertWithRates = (
+	ratesResult: RatesResult,
+	options: ConvertWithRatesOptions,
+): ConvertWithRatesResult => convert(ratesResult, normalizeOptions(options));
+
+export const convertCurrency = async (
+	options: ConvertCurrencyOptions,
+): Promise<ConvertCurrencyResult | null> => {
+	const normalized = normalizeOptions(options);
+	const requestedDate = parseDate(options.date);
+	const ratesResult = await fetchRates(requestedDate, { signal: options.signal });
+	if (!ratesResult) {
+		return null;
+	}
+
+	return {
+		...convert(ratesResult, normalized),
+		requestedDate: formatDate(requestedDate),
 	};
 };

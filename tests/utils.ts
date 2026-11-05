@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'manten';
 import spawn from 'nano-spawn';
 import {
-	formatDate, formatDateId, parseDate, computeTtm,
+	formatDate, formatDateId, parseDate, computeTtm, parseRate,
 } from '../src/api/utils.ts';
 
 // Run a JS expression in an isolated Node process with a specific timezone.
@@ -21,27 +21,55 @@ const evalInTz = async (timezone: string, code: string) => {
 };
 
 describe('utils', () => {
-	test('formatDate converts Date to YYYY-MM-DD', () => {
-		expect(formatDate(new Date(2025, 0, 6))).toBe('2025-01-06');
+	test('formatDate converts a calendar Date to YYYY-MM-DD', () => {
+		expect(formatDate(new Date(Date.UTC(2025, 0, 6)))).toBe('2025-01-06');
 	});
 
-	test('formatDateId converts Date to YYMMDD', () => {
-		expect(formatDateId(new Date(2025, 0, 6))).toBe('250106');
+	test('formatDateId converts a calendar Date to YYMMDD', () => {
+		expect(formatDateId(new Date(Date.UTC(2025, 0, 6)))).toBe('250106');
 	});
 
 	test('parseDate accepts YYYY-MM-DD string', () => {
-		const date = parseDate('2025-01-06');
-		expect(date.getFullYear()).toBe(2025);
-		expect(date.getMonth()).toBe(0);
-		expect(date.getDate()).toBe(6);
+		expect(formatDate(parseDate('2025-01-06'))).toBe('2025-01-06');
 	});
 
 	test('parseDate accepts Date object and preserves calendar fields', () => {
-		const input = new Date(2025, 0, 6);
-		const result = parseDate(input);
-		expect(result.getFullYear()).toBe(2025);
-		expect(result.getMonth()).toBe(0);
-		expect(result.getDate()).toBe(6);
+		expect(formatDate(parseDate(new Date(2025, 0, 6)))).toBe('2025-01-06');
+	});
+
+	test('parseDate rejects nonexistent calendar dates', () => {
+		expect(() => parseDate('2025-02-29')).toThrow('Invalid date');
+	});
+
+	test('string dates do not depend on skipped local midnights', async () => {
+		// Brazil skipped 2018-11-04 00:00 local time for DST
+		const date = await evalInTz('America/Sao_Paulo', `
+			import { parseDate, formatDate } from './src/api/utils.ts';
+			console.log(formatDate(parseDate('2018-11-04')));
+		`);
+		expect(date).toBe('2018-11-04');
+	});
+
+	test('parseRate accepts plain and comma-grouped numbers only', () => {
+		expect(parseRate('155.43')).toBe(155.43);
+		expect(parseRate(' 9,720 ')).toBe(9720);
+		expect(parseRate('1,391.50')).toBe(1391.5);
+		expect(parseRate('unquoted')).toBeNull();
+		expect(parseRate('')).toBeNull();
+		expect(parseRate('(1/24)32.83')).toBeNull();
+		expect(parseRate('2.60(A)4.30(B)')).toBeNull();
+		expect(parseRate('1,23')).toBeNull();
+	});
+
+	test('excelDateToIso does not depend on the host timezone', async () => {
+		// Asia/Shanghai's 1900 LMT offset (+08:05:43) differs from its current offset
+		for (const timezone of ['Asia/Shanghai', 'Pacific/Apia', 'UTC']) {
+			const date = await evalInTz(timezone, `
+				import { excelDateToIso } from './src/api/parse-xls.ts';
+				console.log(excelDateToIso(45658), excelDateToIso(45839));
+			`);
+			expect(date).toBe('2025-01-01 2025-07-01');
+		}
 	});
 
 	test('parseDate throws on invalid string', () => {

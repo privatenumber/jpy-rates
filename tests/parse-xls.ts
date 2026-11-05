@@ -65,6 +65,7 @@ describe('encrypted XLS', () => {
 		year: 2025,
 		currencies: {
 			USD: {
+				unit: 1,
 				daily: [
 					{
 						date: '2025-01-06',

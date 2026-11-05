@@ -4,14 +4,8 @@ import type { ConversionRateType } from '../../api/types.ts';
 import { jsonFlag } from '../flags.ts';
 import { formatConversion } from '../format.ts';
 import {
-	exitOnError, requireResult, style,
+	exitOnError, fail, requireResult, style,
 } from '../shared.ts';
-
-const fail = (message: string): never => {
-	console.error(message);
-	process.exit(1);
-	throw new Error(message);
-};
 
 const requireFlag = <T>(
 	value: T,

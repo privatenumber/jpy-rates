@@ -3,7 +3,7 @@ import { fetchYearly } from '../../api/fetch-yearly.ts';
 import { currencyFlag, jsonFlag } from '../flags.ts';
 import { formatYearly } from '../format.ts';
 import {
-	exitOnError, filterCurrency, requireResult, style,
+	exitOnError, filterCurrency, normalizeCurrency, requireResult, style,
 } from '../shared.ts';
 
 const argv = cli({
@@ -21,7 +21,7 @@ const result = requireResult(
 const filtered = argv.flags.currency
 	? {
 		...result,
-		rates: filterCurrency(result.rates, argv.flags.currency),
+		rates: filterCurrency(result.rates, normalizeCurrency(argv.flags.currency)),
 	}
 	: result;
 if (argv.flags.json) {

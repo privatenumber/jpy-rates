@@ -6,19 +6,24 @@ export const parseUnit = (text: string): number => {
 
 export const cleanCellText = (text: string): string => text.replace(/[*＊\s]+$/u, '').trim();
 
-export const formatDate = (date: Date): string => {
-	const y = date.getFullYear();
-	const m = (date.getMonth() + 1).toString().padStart(2, '0');
-	const d = date.getDate().toString().padStart(2, '0');
-	return `${y}-${m}-${d}`;
+// Calendar dates are represented as Dates at UTC midnight so that every
+// calculation is independent of the host timezone.
+export const formatDate = (date: Date): string => date.toISOString().slice(0, 10);
+
+export const formatDateId = (date: Date): string => formatDate(date).slice(2).replaceAll('-', '');
+
+export const addDays = (date: Date, days: number): Date => {
+	const result = new Date(date);
+	result.setUTCDate(result.getUTCDate() + days);
+	return result;
 };
 
-export const formatDateId = (date: Date): string => {
-	const y = date.getFullYear().toString().slice(-2);
-	const m = (date.getMonth() + 1).toString().padStart(2, '0');
-	const d = date.getDate().toString().padStart(2, '0');
-	return `${y}${m}${d}`;
-};
+const japanOffsetMilliseconds = 9 * 60 * 60 * 1000;
+
+// The source publishes on Japan time, so "today" is the current calendar date in JST.
+export const getTodayInJapan = (): Date => parseDate(
+	formatDate(new Date(Date.now() + japanOffsetMilliseconds)),
+);
 
 const isMidnightLocal = (date: Date) => date.getHours() === 0
 	&& date.getMinutes() === 0
@@ -30,7 +35,7 @@ const isMidnightUtc = (date: Date) => date.getUTCHours() === 0
 	&& date.getUTCSeconds() === 0
 	&& date.getUTCMilliseconds() === 0;
 
-// Returns a local-midnight Date representing the calendar date.
+// Returns a UTC-midnight Date representing the calendar date.
 //
 // Date in JS is an instant, not a calendar date. Two common constructors
 // produce different instants for the same calendar date:
@@ -48,11 +53,11 @@ export const parseDate = (input: string | Date): Date => {
 		}
 
 		if (isMidnightLocal(input)) {
-			return new Date(input.getFullYear(), input.getMonth(), input.getDate());
+			return new Date(Date.UTC(input.getFullYear(), input.getMonth(), input.getDate()));
 		}
 
 		if (isMidnightUtc(input)) {
-			return new Date(input.getUTCFullYear(), input.getUTCMonth(), input.getUTCDate());
+			return new Date(input);
 		}
 
 		throw new Error(
@@ -64,16 +69,40 @@ export const parseDate = (input: string | Date): Date => {
 	const match = input.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 	if (!match) { throw new Error(`Invalid date format: ${input} (expected YYYY-MM-DD)`); }
 	const [, ys, ms, ds] = match;
-	const date = new Date(Number(ys), Number(ms) - 1, Number(ds));
-	const isInvalid = (
-		date.getFullYear() !== Number(ys)
-		|| date.getMonth() !== Number(ms) - 1
-		|| date.getDate() !== Number(ds)
-	);
-	if (isInvalid) {
+	const date = new Date(Date.UTC(Number(ys), Number(ms) - 1, Number(ds)));
+	if (formatDate(date) !== input) {
 		throw new Error(`Invalid date: ${input}`);
 	}
 	return date;
+};
+
+// Throws when a calendar date is outside the range the source can serve.
+export const assertDateInRange = (date: Date, earliest: string): void => {
+	const dateString = formatDate(date);
+	if (dateString < earliest) {
+		throw new RangeError(`Date ${dateString} is before the earliest available date ${earliest}`);
+	}
+	const today = formatDate(getTodayInJapan());
+	if (dateString > today) {
+		throw new RangeError(`Date ${dateString} is in the future (today in Japan is ${today})`);
+	}
+};
+
+// Walks back from `date` until `fetchForDate` returns a result.
+//
+// The longest closure is the 2019 Golden Week holiday (Apr 27 – May 6, ten days),
+// so 14 days covers every known gap with margin.
+const maxWalkbackDays = 14;
+
+export const findPrecedingBusinessDay = async <T>(
+	date: Date,
+	fetchForDate: (date: Date) => Promise<T | null>,
+): Promise<T | null> => {
+	for (let attempt = 0; attempt < maxWalkbackDays; attempt += 1) {
+		const result = await fetchForDate(addDays(date, -attempt));
+		if (result) { return result; }
+	}
+	return null;
 };
 
 export const computeTtm = (tts: number | null, ttb: number | null): number | null => {
@@ -81,9 +110,12 @@ export const computeTtm = (tts: number | null, ttb: number | null): number | nul
 	return Math.round(((tts + ttb) / 2) * 100) / 100;
 };
 
+// Accepts plain decimals and comma-grouped thousands (e.g. "9,720").
+// Anything else, such as "unquoted" or annotated values, is not a rate.
+const ratePattern = /^-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?$/;
+
 export const parseRate = (text: string): number | null => {
 	const trimmed = text.trim();
-	if (!trimmed || trimmed === 'unquoted') { return null; }
-	const value = Number.parseFloat(trimmed);
-	return Number.isNaN(value) ? null : value;
+	if (!ratePattern.test(trimmed)) { return null; }
+	return Number(trimmed.replaceAll(',', ''));
 };

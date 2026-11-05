@@ -36,10 +36,51 @@ describe('fetchMonthly', () => {
 		expect(cny.source.length).toBeGreaterThan(0);
 	});
 
-	test('returns null for out-of-range month (2004-01)', async () => {
-		const result = await fetchMonthly(2004, 1);
-		expect(result).toBeNull();
+	test('throws RangeError for months before available data (2004-01)', async () => {
+		await expect(fetchMonthly(2004, 1)).rejects.toThrow(RangeError);
 	});
+
+	test('rejects a two-digit-year alias of an available month (1926-01)', async () => {
+		await expect(fetchMonthly(1926, 1)).rejects.toThrow(RangeError);
+	});
+
+	test('throws RangeError for invalid months', async () => {
+		await expect(fetchMonthly(2025, 13)).rejects.toThrow('Invalid year and month');
+		await expect(fetchMonthly(Number.NaN, 1)).rejects.toThrow('Invalid year and month');
+	});
+
+	if (!process.env.MUFG_LIVE) {
+		test('parses local market quirks: quote dates, grouped thousands, and merged single rates', async () => {
+			const result = await fetchMonthly(2026, 1);
+			const {
+				TWD, IDR, CNY, HKD,
+			} = result!.localMarketRates;
+			expect(TWD).toMatchObject({
+				selling: 31.5,
+				buying: 31.1,
+				rate: null,
+				quoteDate: '2026-01-24',
+			});
+			expect(IDR).toMatchObject({
+				selling: 16_550,
+				buying: 15_950,
+				rate: null,
+				quoteDate: null,
+			});
+			// A December quote on the January page belongs to the previous year
+			expect(CNY).toMatchObject({
+				selling: null,
+				buying: null,
+				rate: 7.1698,
+				quoteDate: '2025-12-31',
+			});
+			expect(HKD).toMatchObject({
+				selling: null,
+				buying: null,
+				rate: null,
+			});
+		});
+	}
 
 	test('MYR monthEnd and monthlyAverage rates are all null', async () => {
 		const result = await fetchMonthly(2026, 1);

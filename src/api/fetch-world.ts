@@ -1,38 +1,66 @@
 import { fetchShiftJisHtml, fetchSource } from './fetch-source.ts';
-import type { WorldRate, WorldResult } from './types.ts';
+import type { FetchOptions, WorldRate, WorldResult } from './types.ts';
 
 const baseUrl = 'https://www.murc-kawasesouba.jp/fx/worlddata/';
 
 const regionFiles = ['asia', 'africa', 'europe', 'mideast', 'america'] as const;
 
-const parseCsvRow = (line: string): string[] => {
-	const fields: string[] = [];
+// RFC 4180: quoted fields may contain commas, newlines, and "" escapes
+const parseCsvRecords = (text: string): string[][] => {
+	const records: string[][] = [];
+	let fields: string[] = [];
 	let current = '';
 	let inQuotes = false;
 
-	for (const character of line) {
+	for (let index = 0; index < text.length; index += 1) {
+		const character = text[index];
 		if (inQuotes) {
-			if (character === '"') {
-				inQuotes = false;
-			} else {
+			if (character !== '"') {
 				current += character;
+			} else if (text[index + 1] === '"') {
+				current += '"';
+				index += 1;
+			} else {
+				inQuotes = false;
 			}
-		} else if (character === '"') {
-			inQuotes = true;
-		} else if (character === ',') {
-			fields.push(current.trim());
-			current = '';
 		} else {
-			current += character;
+			switch (character) {
+				case '"': {
+					inQuotes = true;
+
+					break;
+				}
+				case ',': {
+					fields.push(current.trim());
+					current = '';
+
+					break;
+				}
+				case '\n': {
+					fields.push(current.trim());
+					records.push(fields);
+					fields = [];
+					current = '';
+
+					break;
+				}
+				case '\r': {
+					break;
+				}
+				default: {
+					current += character;
+				}
+			}
 		}
 	}
 
 	fields.push(current.trim());
-	return fields;
+	records.push(fields);
+	return records.filter(record => record.some(field => field.length > 0));
 };
 
 const parseCsv = (text: string): WorldRate[] => {
-	const lines = text.split('\n').filter(line => line.trim().length > 0);
+	const records = parseCsvRecords(text);
 
 	// Skip header row
 	// The CSVs contain HTML <br> tags and &yen; entities from the source page.
@@ -48,22 +76,19 @@ const parseCsv = (text: string): WorldRate[] => {
 		.replaceAll('&amp;', '&') // must be last (other entities contain &)
 		.trim();
 
-	return lines.slice(1).map((line) => {
-		const fields = parseCsvRow(line);
-		return {
-			country: cleanHtml(fields[0] ?? ''),
-			countryJa: cleanHtml(fields[1] ?? ''),
-			currency: cleanHtml(fields[2] ?? ''),
-			code: cleanHtml(fields[3] ?? ''),
-			quotation: cleanHtml(fields[4] ?? ''),
-			marketLevel: cleanHtml(fields[5] ?? ''),
-			remarks: cleanHtml(fields[6] ?? ''),
-		};
-	});
+	return records.slice(1).map(fields => ({
+		country: cleanHtml(fields[0] ?? ''),
+		countryJa: cleanHtml(fields[1] ?? ''),
+		currency: cleanHtml(fields[2] ?? ''),
+		code: cleanHtml(fields[3] ?? ''),
+		quotation: cleanHtml(fields[4] ?? ''),
+		marketLevel: cleanHtml(fields[5] ?? ''),
+		remarks: cleanHtml(fields[6] ?? ''),
+	}));
 };
 
-const fetchCsv = async (filename: string): Promise<WorldRate[]> => {
-	const response = await fetchSource(`${baseUrl}${filename}.csv`);
+const fetchCsv = async (filename: string, options: FetchOptions): Promise<WorldRate[]> => {
+	const response = await fetchSource(`${baseUrl}${filename}.csv`, options);
 	if (response.status < 200 || response.status >= 300) {
 		throw new Error(`Failed to fetch ${filename}.csv (HTTP ${response.status})`);
 	}
@@ -90,8 +115,8 @@ const parseDateFromText = (text: string): string => {
 	return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
-export const fetchWorld = async (): Promise<WorldResult> => {
-	const html = await fetchShiftJisHtml('https://www.murc-kawasesouba.jp/fx/world.html');
+export const fetchWorld = async (options: FetchOptions = {}): Promise<WorldResult> => {
+	const html = await fetchShiftJisHtml('https://www.murc-kawasesouba.jp/fx/world.html', options);
 	if (!html) {
 		throw new Error('Failed to fetch world page');
 	}
@@ -99,7 +124,7 @@ export const fetchWorld = async (): Promise<WorldResult> => {
 	const date = parseDateFromText(html);
 
 	const [asia, africa, europe, mideast, americas] = await Promise.all(
-		regionFiles.map(region => fetchCsv(region)),
+		regionFiles.map(region => fetchCsv(region, options)),
 	);
 
 	return {

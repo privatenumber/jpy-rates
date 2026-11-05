@@ -2,6 +2,7 @@ import { cli } from 'cleye';
 
 const argv = cli({
 	name: 'murc-rates',
+	strictFlags: true,
 	commands: {
 		rates: {
 			description: 'Fetch exchange rates for a date',

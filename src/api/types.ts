@@ -1,3 +1,9 @@
+export type FetchOptions = {
+
+	/** Cancels the request, including retries and business-day walkback. */
+	signal?: AbortSignal;
+};
+
 export type RateValues = {
 	tts: number | null;
 	ttb: number | null;
@@ -20,17 +26,19 @@ export type RatesResult = {
 // convertCurrency
 export type ConversionRateType = 'tts' | 'ttb' | 'ttm';
 
-export type ConvertCurrencyOptions = {
+export type ConvertWithRatesOptions = {
 	amount: number;
 	from: string;
 	to: string;
-	date: string | Date;
 	rate?: ConversionRateType;
 };
 
-export type ConvertCurrencyResult = {
+export type ConvertCurrencyOptions = ConvertWithRatesOptions & FetchOptions & {
+	date: string | Date;
+};
+
+export type ConvertWithRatesResult = {
 	source: string;
-	requestedDate: string;
 	sourceDate: string;
 	amount: number;
 	from: string;
@@ -39,6 +47,10 @@ export type ConvertCurrencyResult = {
 	rateValue: number;
 	unit: number;
 	convertedAmount: number;
+};
+
+export type ConvertCurrencyResult = ConvertWithRatesResult & {
+	requestedDate: string;
 };
 
 // fetchDaily
@@ -70,6 +82,12 @@ export type LocalMarketRate = {
 	name: string;
 	selling: number | null;
 	buying: number | null;
+
+	/** Single published rate (e.g. a central rate) when there is no selling/buying split. */
+	rate: number | null;
+
+	/** Date of the quote (YYYY-MM-DD) when the source annotates one, such as "(1/27)". */
+	quoteDate: string | null;
 	sourceJa: string;
 	source: string;
 };
@@ -134,6 +152,12 @@ export type ReferenceMonthlySummary = {
 
 export type ReferenceCurrency = {
 	sourceJa: string;
+
+	/**
+	 * JPY amount that `rates.perJpy` values are quoted against (1 or 100).
+	 * Null when there are no per-JPY rates.
+	 */
+	perJpyUnit: number | null;
 	rates: {
 		perUsd?: ReferenceDailyRate[];
 		perJpy?: ReferenceDailyRate[];
@@ -155,27 +179,32 @@ export type ArchiveDailyRate = {
 	ttm: number;
 };
 
+// Values are TTM. Null when the workbook does not publish the value
+// (e.g. 1990-2000 workbooks only publish monthly averages).
 export type ArchiveMonthlySummary = {
 	month: number;
-	high: number;
-	low: number;
-	average: number;
+	high: number | null;
+	low: number | null;
+	average: number | null;
 };
 
 export type ArchiveAnnualSummary = {
-	high: number;
-	low: number;
-	average: number;
+	high: number | null;
+	low: number | null;
+	average: number | null;
 };
 
 export type ArchiveCurrency = {
+	unit: number;
 	daily: ArchiveDailyRate[];
 	monthly: ArchiveMonthlySummary[];
 	annual: ArchiveAnnualSummary;
 };
 
 export type ArchiveResult = {
-	source: string;
+
+	/** Source URL supplied by the caller, or null for workbooks of unknown origin. */
+	source: string | null;
 	year: number;
 	currencies: Record<string, ArchiveCurrency>;
 };

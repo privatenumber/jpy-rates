@@ -144,8 +144,10 @@ describe('formatters', () => {
 				CNY: {
 					nameJa: 'Synthetic CNY',
 					name: 'CNY Synthetic yuan',
-					selling: 6.5,
+					selling: null,
 					buying: null,
+					rate: 6.5,
+					quoteDate: '2026-02-27',
 					sourceJa: 'Synthetic Center',
 					source: 'Synthetic Source',
 				},
@@ -218,6 +220,7 @@ describe('formatters', () => {
 			currencies: {
 				CNY: {
 					sourceJa: 'Synthetic CNY Source',
+					perJpyUnit: 100,
 					rates: {
 						perUsd: [],
 						perJpy: [],
@@ -239,6 +242,7 @@ describe('formatters', () => {
 				},
 				TWD: {
 					sourceJa: 'Synthetic TWD Source',
+					perJpyUnit: null,
 					rates: { perUsd: [] },
 					monthlySummary: [
 						{
@@ -266,6 +270,7 @@ describe('formatters', () => {
 			year: 2024,
 			currencies: {
 				USD: {
+					unit: 1,
 					daily: [],
 					monthly: [],
 					annual: {
@@ -275,12 +280,23 @@ describe('formatters', () => {
 					},
 				},
 				MYR: {
+					unit: 1,
 					daily: [],
 					monthly: [],
 					annual: {
-						high: 0,
-						low: 0,
-						average: 0,
+						high: null,
+						low: null,
+						average: null,
+					},
+				},
+				KRW: {
+					unit: 100,
+					daily: [],
+					monthly: [],
+					annual: {
+						high: 10,
+						low: 9,
+						average: 9.5,
 					},
 				},
 			},
@@ -289,7 +305,9 @@ describe('formatters', () => {
 		expect(output).toContain('USD');
 		expect(output).toContain('130.00');
 		expect(output).toContain('105.00');
-		expect(output).toContain('—'); // MYR all-zero
+		expect(output).toContain('—'); // MYR has no annual summary
+		expect(output).toContain('KRW*');
+		expect(output).toContain('* per 100 units');
 		expect(output).toContain('High');
 	});
 

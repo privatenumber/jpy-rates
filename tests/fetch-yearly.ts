@@ -43,9 +43,12 @@ describe('fetchYearly', () => {
 		expect(result!.rates.USD.yearlyAverage.tts).toBeGreaterThan(0);
 	});
 
-	test('returns null for 2002 (out of range)', async () => {
-		const result = await fetchYearly(2002);
-		expect(result).toBeNull();
+	test('throws RangeError for 2002 (before available data)', async () => {
+		await expect(fetchYearly(2002)).rejects.toThrow(RangeError);
+	});
+
+	test('throws RangeError for non-integer years', async () => {
+		await expect(fetchYearly(Number.NaN)).rejects.toThrow(RangeError);
 	});
 
 	test('KRW has unit 100', async () => {
@@ -60,9 +63,8 @@ describe('fetchYearly', () => {
 		expect(result!.year).toBe(2024);
 	});
 
-	test('fetchYearly returns null for future year (2030)', async () => {
-		const result = await fetchYearly(2030);
-		expect(result).toBeNull();
+	test('fetchYearly throws RangeError for future year (2030)', async () => {
+		await expect(fetchYearly(2030)).rejects.toThrow('outside the available range');
 	});
 
 	test('fetchYearly returns null for current incomplete year (2026)', async () => {

@@ -5,7 +5,9 @@ import {
 } from '../src/api/archive.ts';
 
 const parseArchiveYear = async (year: number) => (
-	parseArchiveWorkbook(await downloadArchiveSource(year))
+	parseArchiveWorkbook(await downloadArchiveSource(year), {
+		sourceUrl: getArchiveSourceUrl(year),
+	})
 );
 
 describe('archive', () => {
@@ -69,16 +71,16 @@ describe('archive', () => {
 		for (const entry of usd!.monthly) {
 			expect(entry.month).toBeGreaterThanOrEqual(1);
 			expect(entry.month).toBeLessThanOrEqual(12);
-			expect(entry.high).toBeGreaterThanOrEqual(entry.average);
-			expect(entry.average).toBeGreaterThanOrEqual(entry.low);
+			expect(entry.high).toBeGreaterThanOrEqual(entry.average!);
+			expect(entry.average).toBeGreaterThanOrEqual(entry.low!);
 		}
 	});
 
 	test('annual high >= average >= low', async () => {
 		const result = await parseArchiveYear(2025);
 		const usd = result.currencies.USD;
-		expect(usd!.annual.high).toBeGreaterThanOrEqual(usd!.annual.average);
-		expect(usd!.annual.average).toBeGreaterThanOrEqual(usd!.annual.low);
+		expect(usd!.annual.high).toBeGreaterThanOrEqual(usd!.annual.average!);
+		expect(usd!.annual.average).toBeGreaterThanOrEqual(usd!.annual.low!);
 	});
 
 	test('2013 has TRY (Turkish Lira)', async () => {
@@ -114,12 +116,31 @@ describe('archive', () => {
 		expect(usd.annual.high).toBeGreaterThan(0);
 	});
 
-	test('parseArchiveWorkbook(2001) reads monthly summaries', async () => {
+	test('parseArchiveWorkbook(2001) reads monthly averages without inventing high/low', async () => {
 		const result = await parseArchiveYear(2001);
 		const usd = result.currencies.USD;
-		expect(usd.monthly.length).toBe(12);
-		expect(usd.monthly[0].high).toBeGreaterThan(0);
+		expect(usd.monthly.map(entry => entry.month)).toStrictEqual(
+			Array.from({ length: 12 }, (_, index) => index + 1),
+		);
+		expect(usd.monthly[0]).toStrictEqual({
+			month: 1,
+			high: null,
+			low: null,
+			average: usd.monthly[0].average,
+		});
+		expect(usd.monthly[0].average).toBeGreaterThan(0);
 		expect(usd.annual.high).toBeGreaterThan(0);
+	});
+
+	test('workbooks without a source URL report an unknown source', async () => {
+		const result = await parseArchiveWorkbook(await downloadArchiveSource(2025));
+		expect(result.source).toBeNull();
+	});
+
+	test('reads per-100-unit quotes from the workbook header notes', async () => {
+		const result = await parseArchiveYear(2025);
+		expect(result.currencies.USD.unit).toBe(1);
+		expect(result.currencies.KRW.unit).toBe(100);
 	});
 
 	test('parseArchiveWorkbook(2009) has non-zero annual summary', async () => {

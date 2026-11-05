@@ -1,4 +1,6 @@
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { cli } from 'cleye';
 import { parseArchiveWorkbook } from '../../api/archive.ts';
 import { jsonFlag } from '../flags.ts';
@@ -13,7 +15,9 @@ const argv = cli({
 });
 
 const xlsBuffer = await exitOnError(readFile(argv._.file));
-const result = await exitOnError(parseArchiveWorkbook(xlsBuffer));
+const result = await exitOnError(parseArchiveWorkbook(xlsBuffer, {
+	sourceUrl: pathToFileURL(path.resolve(argv._.file)).href,
+}));
 if (argv.flags.json) {
 	console.log(JSON.stringify(result));
 } else {

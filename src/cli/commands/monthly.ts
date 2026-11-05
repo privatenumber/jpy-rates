@@ -3,7 +3,7 @@ import { fetchMonthly } from '../../api/fetch-monthly.ts';
 import { currencyFlag, jsonFlag } from '../flags.ts';
 import { formatMonthly } from '../format.ts';
 import {
-	exitOnError, filterCurrency, requireResult, style,
+	exitOnError, fail, normalizeCurrency, pickCurrency, requireResult, style,
 } from '../shared.ts';
 
 const argv = cli({
@@ -18,12 +18,21 @@ const result = requireResult(
 	await exitOnError(fetchMonthly(Number(argv._.year), Number(argv._.month))),
 	'No monthly rates found for this period',
 );
-const filtered = argv.flags.currency
+const currency = argv.flags.currency && normalizeCurrency(argv.flags.currency);
+const filtered = currency
 	? {
 		...result,
-		rates: filterCurrency(result.rates, argv.flags.currency),
+		rates: pickCurrency(result.rates, currency),
+		localMarketRates: pickCurrency(result.localMarketRates, currency),
 	}
 	: result;
+if (
+	currency
+	&& Object.keys(filtered.rates).length === 0
+	&& Object.keys(filtered.localMarketRates).length === 0
+) {
+	fail(`Currency ${currency} not found in results`);
+}
 if (argv.flags.json) {
 	console.log(JSON.stringify(filtered));
 } else {

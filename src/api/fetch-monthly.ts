@@ -1,9 +1,11 @@
 import { parseHTML } from 'linkedom';
-import type { MonthlyRate, LocalMarketRate, MonthlyResult } from './types.ts';
+import type {
+	FetchOptions, MonthlyRate, LocalMarketRate, MonthlyResult,
+} from './types.ts';
 import {
-	parseRate, computeTtm, parseUnit, cleanCellText,
+	parseRate, computeTtm, parseUnit, cleanCellText, formatDate, getTodayInJapan,
 } from './utils.ts';
-import { fetchShiftJisHtml } from './fetch-source.ts';
+import { fetchShiftJisHtml, unexpectedPageError } from './fetch-source.ts';
 
 const mainColumnsPerRow = 9;
 
@@ -48,79 +50,110 @@ const parseMainTable = (table: Element): Record<string, MonthlyRate> => {
 	return rates;
 };
 
-const parseLocalMarketTable = (table: Element): Record<string, LocalMarketRate> => {
+// Local market cells may be prefixed with the quote date, e.g. "(1/27)7.1698"
+const parseLocalMarketValue = (
+	text: string,
+	year: number,
+	month: number,
+): { value: number | null;
+	quoteDate: string | null; } => {
+	const match = text.trim().match(/^[(（](\d{1,2})\/(\d{1,2})[)）](.*)$/s);
+	if (!match) {
+		return {
+			value: parseRate(text),
+			quoteDate: null,
+		};
+	}
+
+	const [, quoteMonth, quoteDay, rest] = match;
+	// A quote dated in a later month than the page belongs to the previous year
+	const quoteYear = Number(quoteMonth) > month ? year - 1 : year;
+	return {
+		value: parseRate(rest!),
+		quoteDate: `${quoteYear}-${quoteMonth!.padStart(2, '0')}-${quoteDay!.padStart(2, '0')}`,
+	};
+};
+
+const parseLocalMarketTable = (
+	table: Element,
+	year: number,
+	month: number,
+): Record<string, LocalMarketRate> => {
 	const localRates: Record<string, LocalMarketRate> = {};
 	const rows = Array.from(table.querySelectorAll('tr'));
 
 	for (const row of rows) {
 		const cells = Array.from(row.querySelectorAll('td'));
-		if (cells.length === 0) { continue; }
+		const isMergedRate = cells.length === 5 && cells[2]?.getAttribute('colspan') === '2';
+		if (!isMergedRate && cells.length !== 6) { continue; }
 
-		const hasColspan = cells.some(cell => cell.getAttribute('colspan'));
+		const text = (index: number) => (cells[index]!.textContent ?? '').trim();
+		const currencyText = text(1);
+		const values = (isMergedRate ? [2] : [2, 3]).map(
+			index => parseLocalMarketValue(text(index), year, month),
+		);
+		const sourceIndex = isMergedRate ? 3 : 4;
 
-		if (hasColspan && cells.length === 5) {
-			// colspan="2" merges selling/buying into one cell
-			const nameJa = (cells[0].textContent ?? '').trim();
-			const currencyText = (cells[1].textContent ?? '').trim();
-			const code = extractCurrencyCode(currencyText);
-			const sourceJa = (cells[3].textContent ?? '').trim();
-			const source = (cells[4].textContent ?? '').trim();
-
-			localRates[code] = {
-				nameJa,
-				name: currencyText,
-				selling: null,
-				buying: null,
-				sourceJa,
-				source,
-			};
-		} else if (cells.length === 6) {
-			const nameJa = (cells[0].textContent ?? '').trim();
-			const currencyText = (cells[1].textContent ?? '').trim();
-			const code = extractCurrencyCode(currencyText);
-			const selling = parseRate(cells[2].textContent ?? '');
-			const buying = parseRate(cells[3].textContent ?? '');
-			const sourceJa = (cells[4].textContent ?? '').trim();
-			const source = (cells[5].textContent ?? '').trim();
-
-			localRates[code] = {
-				nameJa,
-				name: currencyText,
-				selling,
-				buying,
-				sourceJa,
-				source,
-			};
-		}
+		localRates[extractCurrencyCode(currencyText)] = {
+			nameJa: text(0),
+			name: currencyText,
+			selling: isMergedRate ? null : values[0]!.value,
+			buying: isMergedRate ? null : values[1]!.value,
+			rate: isMergedRate ? values[0]!.value : null,
+			quoteDate: values.find(value => value.quoteDate)?.quoteDate ?? null,
+			sourceJa: text(sourceIndex),
+			source: text(sourceIndex + 1),
+		};
 	}
 
 	return localRates;
 };
 
-export const fetchMonthly = async (year: number, month: number): Promise<MonthlyResult | null> => {
-	const yearSuffix = (year % 100).toString().padStart(2, '0');
-	const monthPadded = month.toString().padStart(2, '0');
-	const id = `${yearSuffix}${monthPadded}`;
+const earliestMonth = '2005-09';
 
+/**
+ * Fetch month-end rates, monthly averages, and local market rates.
+ *
+ * Throws a RangeError for invalid months, months before 2005-09, and future months.
+ * Returns null when the month has no published data yet.
+ */
+export const fetchMonthly = async (
+	year: number,
+	month: number,
+	options: FetchOptions = {},
+): Promise<MonthlyResult | null> => {
+	if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+		throw new RangeError(`Invalid year and month: ${year}-${month}`);
+	}
+
+	const monthPadded = month.toString().padStart(2, '0');
+	const requestedMonth = `${year}-${monthPadded}`;
+	const currentMonth = formatDate(getTodayInJapan()).slice(0, 7);
+	if (requestedMonth < earliestMonth || requestedMonth > currentMonth) {
+		throw new RangeError(`Month ${requestedMonth} is outside the available range (${earliestMonth} to ${currentMonth})`);
+	}
+
+	const id = `${(year % 100).toString().padStart(2, '0')}${monthPadded}`;
 	const url = `https://www.murc-kawasesouba.jp/fx/monthend/index.php?id=${id}`;
-	const html = await fetchShiftJisHtml(url);
+	const html = await fetchShiftJisHtml(url, options);
 	if (!html) { return null; }
 
 	const { document } = parseHTML(html);
 	const tables = Array.from(document.querySelectorAll('table.data-table7'));
 
 	const mainTable = tables[0];
-	if (!mainTable) { return null; }
+	if (!mainTable) {
+		throw unexpectedPageError(url, 'missing rate table');
+	}
 
 	const rates = parseMainTable(mainTable);
+	if (Object.keys(rates).length === 0) {
+		throw unexpectedPageError(url, 'empty rate table');
+	}
 
-	let localMarketRates: Record<string, LocalMarketRate> = {};
-	for (let i = 1; i < tables.length; i += 1) {
-		const parsed = parseLocalMarketTable(tables[i]);
-		localMarketRates = {
-			...localMarketRates,
-			...parsed,
-		};
+	const localMarketRates: Record<string, LocalMarketRate> = {};
+	for (const table of tables.slice(1)) {
+		Object.assign(localMarketRates, parseLocalMarketTable(table, year, month));
 	}
 
 	return {
