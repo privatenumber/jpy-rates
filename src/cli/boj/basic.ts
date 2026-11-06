@@ -22,7 +22,7 @@ const reference = currency
 	? result.reference.filter(row => row.code === currency)
 	: result.reference;
 const arbitrated = currency ? pickCurrency(result.arbitrated, currency) : result.arbitrated;
-if (currency && currency !== 'USD' && !Object.keys(cross).length && !Object.keys(arbitrated).length) {
+if (currency && currency !== 'USD' && !Object.keys(cross).length && reference.length === 0) {
 	fail(`Currency ${currency} not found in results`);
 }
 const filtered = {

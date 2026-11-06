@@ -59,6 +59,35 @@ if (!process.env.JPY_RATES_LIVE) {
 				usd: 0.08,
 			});
 		});
+		test('keeps currencies published without a rate', async () => {
+			const basic = await fetchBasicRates(2021, 5);
+			expect(basic!.reference.find(row => row.code === 'MMK')).toStrictEqual({
+				code: 'MMK',
+				nameJa: 'ミャンマー・チャット',
+				unit: 1,
+				usd: null,
+			});
+			expect(basic!.arbitrated.MMK).toBeUndefined();
+
+			const reporting = await fetchReportingRates(2021, 5);
+			expect(reporting!.rates.MMK).toStrictEqual({
+				code: 'MMK',
+				unit: 1,
+				usd: null,
+			});
+		});
+
+		test('parses reporting HTML without a space between units and code', async () => {
+			const result = await fetchReportingRates(2016, 4);
+			expect(result!.rates.JPY).toStrictEqual({
+				code: 'JPY',
+				unit: 115,
+				usd: 1,
+			});
+			expect(result!.rates.CAD!.usd).toBe(0.725);
+			expect(result!.rates.MMK!.usd).toBeNull();
+		});
+
 		test('rejects malformed published pages', async () => {
 			await expect(fetchBasicRates(2026, 10)).rejects.toThrow('Unexpected BOJ');
 		});

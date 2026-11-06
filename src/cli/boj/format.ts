@@ -7,9 +7,12 @@ export const formatBasic = (result: BasicRatesResult, style: Ansis, showBasic = 
 		...(showBasic ? [['USD', 1, result.basic, 'basic'] as const] : []),
 		...Object.entries(result.cross).map(([code, rate]) => [code, 1, rate, 'cross'] as const),
 		...Object.entries(result.arbitrated).map(([code, quote]) => [code, quote.unit, quote.rate, 'derived'] as const),
+		...result.reference
+			.filter(row => row.usd === null)
+			.map(row => [row.code ?? row.nameJa, row.unit, null, 'no rate published'] as const),
 	];
 	const rows = entries.map(([code, unit, rate, basis]) => [
-		unit === 1 ? code : `${code}*`, String(unit), String(rate), basis,
+		unit === 1 ? code : `${code}*`, String(unit), rate === null ? style.dim('—') : String(rate), basis,
 	]);
 	const sections = [
 		style.bold(`BOJ basic and cross rates ${result.month}`),
@@ -30,7 +33,7 @@ export const formatBasic = (result: BasicRatesResult, style: Ansis, showBasic = 
 
 export const formatReporting = (result: ReportingRatesResult, style: Ansis): string => {
 	const rows = Object.values(result.rates).map(({ code, unit, usd }) => [
-		code, String(unit), String(usd),
+		code, String(unit), usd === null ? style.dim('— (no rate published)') : String(usd),
 	]);
 	return [
 		style.bold(`BOJ reporting rates ${result.month}`),

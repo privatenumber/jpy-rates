@@ -15,6 +15,11 @@ if (!process.env.JPY_RATES_LIVE) {
 			expect(output).toContain('derived');
 			expect(output).not.toContain('CAD');
 		});
+		test('basic shows currencies published without a rate', async () => {
+			const output = await run('basic', '2021-05', '-c', 'mmk');
+			expect(output).toContain('MMK');
+			expect(output).toContain('no rate published');
+		});
 		test('reporting JSON filters currencies', async () => {
 			const output = await run('reporting', '2026-11', '-c', 'krw', '--json');
 			expect(JSON.parse(output).rates).toStrictEqual({

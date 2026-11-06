@@ -22,6 +22,12 @@ Both indexes ([基準・裁定](https://www.boj.or.jp/about/services/tame/tame_r
 - Reference rows on the basic page: USD per stated units of each other currency, for a month two months earlier (for example `100 韓国ウォン につき 0.0736 米ドル`).
 - Reporting ordinance rates: USD per stated units. JPY itself appears as `(156 JPY) につき 1 米ドル`. The adapter keeps these in `usd` fields so that `rate` always means JPY in this package.
 
+## Value formats
+
+- The reporting HTML pages write `(118 JPY)` through 2016-03 and `(115JPY)`, without a space, from 2016-04 to 2016-08; the parser accepts both.
+- A listed currency can have a dash instead of a rate: MMK in 2021-05 appears as `1ミャンマー・チャットにつき─米ドル` on the basic page and `─` in the reporting workbook. The adapter keeps such rows with `usd: null` instead of dropping them.
+- A sweep on 2026-11-07 parsed every month from 2016-01 to 2026-11 for both datasets: 131 basic pages (55 reference rows each, 54 in 2021-05 before the dash fix) and 131 reporting publications (62 entries), with no unmapped currency names.
+
 ## Derived JPY rates
 
 Each announcement defines other currencies as `当該通貨のアメリカ合衆国通貨に対する市場実勢を基準外国為替相場をもって裁定した相場` (for example [kiju2611.htm](https://www.boj.or.jp/about/services/tame/tame_rate/kijun/kiju2611.htm)). `arbitrated` computes `usd × basic`, normalized to 12 significant digits to remove floating-point noise; the BOJ states no rounding. Examples for 2026-11: KRW 11.4816 JPY per 100, VES 0.19032 JPY per 1.

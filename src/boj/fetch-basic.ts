@@ -1,5 +1,6 @@
 import { parseHTML } from 'linkedom';
 import { fetchSource, type FetchOptions } from '../utils/fetch-source.ts';
+import { normalizeFloat } from '../utils/number.ts';
 import {
 	attribution, baseUrl, isUnannounced, japaneseMonth, monthParts,
 } from './common.ts';
@@ -41,7 +42,8 @@ export const fetchBasicRates = async (
 	const reference: BasicRatesResult['reference'] = [];
 	for (const element of contents?.querySelectorAll('li') ?? []) {
 		const text = (element.textContent ?? '').normalize('NFKC').replaceAll(/\s/g, '');
-		const match = text.match(/^(\d+)(\D+?)につき([\d.]+)米ドル$/);
+		// A dash (─) means no market rate was published for the currency that month
+		const match = text.match(/^(\d+)(\D+?)につき([\d.]+|[─―－-])米ドル$/);
 		if (match) {
 			const nameJa = match[2]!;
 			// BOJ reporting labels use VEB through 2018-09 and VES from 2018-10.
@@ -52,7 +54,7 @@ export const fetchBasicRates = async (
 				code,
 				nameJa,
 				unit: Number(match[1]),
-				usd: Number(match[3]),
+				usd: /^[\d.]+$/.test(match[3]!) ? Number(match[3]) : null,
 			});
 		}
 	}
@@ -68,11 +70,13 @@ export const fetchBasicRates = async (
 		cross,
 		referenceMonth,
 		reference,
-		arbitrated: Object.fromEntries(reference.filter(row => row.code !== null).map(row => [
-			row.code!, {
-				unit: row.unit,
-				rate: Number((row.usd * basic).toPrecision(12)),
-			},
-		])),
+		arbitrated: Object.fromEntries(reference.flatMap(row => (
+			row.code !== null && row.usd !== null
+				? [[row.code, {
+					unit: row.unit,
+					rate: normalizeFloat(row.usd * basic),
+				}]]
+				: []
+		))),
 	};
 };

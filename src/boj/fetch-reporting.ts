@@ -13,13 +13,14 @@ const parseHtml = (html: string, month: string): Record<string, ReportingRate> =
 	const rates: Record<string, ReportingRate> = {};
 	for (const element of contents?.querySelectorAll('li') ?? []) {
 		const text = (element.textContent ?? '').normalize('NFKC');
-		const match = text.match(/\(\s*([\d.]+)\s+([A-Z]{3})\s*\)\s*につき\s*([\d.]+)米ドル/);
+		// From 2016-04 the pages omit the space, e.g. (115JPY); a dash (─) means no published rate
+		const match = text.match(/\(\s*([\d.]+)\s*([A-Z]{3})\s*\)\s*につき\s*([\d.]+|[─―－-])\s*米ドル/);
 		if (match) {
 			const [, unit, code, usd] = match;
 			rates[code!] = {
 				code: code!,
 				unit: Number(unit),
-				usd: Number(usd),
+				usd: /^[\d.]+$/.test(usd!) ? Number(usd) : null,
 			};
 		}
 	}
@@ -38,16 +39,20 @@ const parseWorkbook = (data: ArrayBuffer, month: string): Record<string, Reporti
 	const rates: Record<string, ReportingRate> = {};
 	for (const row of rows) {
 		const label = row.slice(2, 6).join('').normalize('NFKC');
-		const match = label.match(/\(\s*([\d.]+)\s+([A-Z]{3})\s*\)/);
-		const usd = Number(row[10]);
-		if (match && Number.isFinite(usd) && usd > 0) {
-			const code = match[2]!;
-			rates[code] = {
-				code,
-				unit: Number(match[1]),
-				usd,
-			};
+		const match = label.match(/\(\s*([\d.]+)\s*([A-Z]{3})\s*\)/);
+		if (!match) { continue; }
+		const code = match[2]!;
+		const value = row[10];
+		// A dash (─) means no rate was published for the currency that month
+		const usd = typeof value === 'string' && /^\s*[─―－-]\s*$/.test(value) ? null : Number(value);
+		if (usd !== null && !(Number.isFinite(usd) && usd > 0)) {
+			throw new Error(`Unexpected BOJ reporting rate for ${code}: ${String(value)}`);
 		}
+		rates[code] = {
+			code,
+			unit: Number(match[1]),
+			usd,
+		};
 	}
 	return rates;
 };
