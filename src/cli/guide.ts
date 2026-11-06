@@ -30,10 +30,12 @@ const formatTopic = (topic: GuideTopic): string => {
 	const lines = [
 		`${style.bold(topic.title)} ${style.dim(`(${topic.titleJa})`)}`,
 		'',
-		`${style.dim('Rate:       ')}${topic.rate}`,
-		`${style.dim('Date:       ')}${topic.date}`,
-		`${style.dim('Institution:')} ${topic.institution}`,
-		`${style.dim('Source:     ')}${topic.source}`,
+		...[
+			['Rate:', topic.rate],
+			['Date:', topic.date],
+			['Institution:', topic.institution],
+			['Source:', topic.source],
+		].map(([label, value]) => `${style.dim(label!.padEnd(13))}${value}`),
 	];
 
 	for (const rule of topic.rules) {

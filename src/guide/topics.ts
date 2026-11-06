@@ -193,7 +193,7 @@ export const guideTopics: GuideTopic[] = [
 	},
 	{
 		id: 'foreign-asset-report',
-		title: 'Statement of foreign assets (国外財産調書)',
+		title: 'Statement of foreign assets',
 		titleJa: '国外財産調書の邦貨換算',
 		source: 'murc',
 		rate: 'TTB (the final quote of the day)',
