@@ -1,20 +1,27 @@
 export type CustomsRate = {
+
 	/** ISO 4217 code */
 	code: string;
+
 	/** Countries or territories listed for this currency */
 	countries: string[];
 	currencyJa: string;
+
 	/** Number of currency units the rate is quoted for (1 or 100) */
 	unit: number;
+
 	/** JPY per `unit` currency units */
 	rate: number;
 };
 
 export type CustomsRatesResult = {
+
 	/** URL of the weekly PDF the rates were parsed from */
 	source: string;
+
 	/** Credit required by PDL1.0 */
 	attribution: string;
+
 	/** Period the rates apply to (YYYY-MM-DD, inclusive) */
 	period: {
 		start: string;
