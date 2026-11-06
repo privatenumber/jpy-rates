@@ -45,7 +45,13 @@ The guide is also available as data:
 import { getGuideTopic, guideTopics, rateSources } from 'jpy-rates'
 
 getGuideTopic('foreign-asset-report')
-// { rate: 'TTB (the final quote of the day)', date: 'December 31; ...', rules: [{ name: '国外送金等調書法通達5-14', url, excerpts }], command, ... }
+// {
+//   rate: 'TTB (the final quote of the day)',
+//   date: 'December 31; ...',
+//   rules: [{ name: '国外送金等調書法通達5-14', url, excerpts }],
+//   command: 'jpy-rates murc convert ... -d <year>-12-31 -p foreign-asset-report',
+//   ...
+// }
 ```
 
 ## MURC (`jpy-rates/murc`)
