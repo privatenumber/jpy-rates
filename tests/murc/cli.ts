@@ -111,7 +111,20 @@ describe('cli', () => {
 		expect(stdout).toContain('100 USD = 10,400 JPY');
 		expect(stdout).toContain('Rate: TTM 104.00 JPY per 1 USD');
 		expect(stdout).toContain('Date: 2025-01-06');
+		expect(stdout).toContain('Bank: MUFG Bank customer rate, published by MURC');
 		expect(stdout).toContain('Source: https://www.murc-kawasesouba.jp/fx/');
+	});
+
+	test('convert shows small amounts without rounding them to 0', async () => {
+		if (process.env.JPY_RATES_LIVE) { return; }
+		const stdout = await cli(['convert', '-a', '0.00000000001', '-f', 'USD', '-t', 'JPY', '-d', '2025-01-06']);
+		expect(stdout).toContain('0.00000000001 USD = 0.00000000104 JPY');
+	});
+
+	test('default tables cite their source', async () => {
+		for (const arguments_ of [['rates', '2025-01-06'], ['daily', '2025-01-06'], ['monthly', '2026', '1'], ['world']]) {
+			expect(await cli(arguments_)).toMatch(/^Source: https:\/\/www\.murc-kawasesouba\.jp\/fx\//m);
+		}
 	});
 
 	test('convert accepts a negative amount after a numeric flag', async () => {
@@ -193,7 +206,9 @@ describe('cli', () => {
 	test('world default outputs formatted table', async () => {
 		const stdout = await cli(['world']);
 		expect(stdout).toContain('Country');
+		expect(stdout).toContain('Official');
 		expect(stdout).toContain('Market Level');
+		expect(stdout).toContain('per 1 USD unless noted');
 	});
 
 	test('world --json outputs compact JSON', async () => {
@@ -260,6 +275,13 @@ describe('cli', () => {
 		expect(stdout).toContain('KRW*');
 		expect(stdout).toContain('* per 100 units');
 		expect(stdout).not.toContain('USD');
+	});
+
+	test('monthly shows the quote date and basis of local market rates', async () => {
+		if (process.env.JPY_RATES_LIVE) { return; }
+		const stdout = await cli(['monthly', '2026', '1', '-c', 'cny']);
+		expect(stdout).toContain('per 1 USD, as quoted in each market');
+		expect(stdout).toContain('2025-12-31');
 	});
 
 	test('monthly --currency filters local market rates too', async () => {

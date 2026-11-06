@@ -52,6 +52,8 @@ describe('guide', () => {
 		expect(topic).toContain('jpy-rates murc convert');
 
 		expect(await cli(['guide', 'Stock-Sale'])).toContain('措置法通達37の10・37の11共-6');
+		expect(await cli(['guide', 'stock-sale'])).toContain('This fetches MUFG Bank\'s rate');
+		expect(await cli(['guide', 'import'])).not.toContain('MUFG Bank');
 
 		const json = JSON.parse(await cli(['guide', 'import', '--json']));
 		expect(json.source).toBe('customs');

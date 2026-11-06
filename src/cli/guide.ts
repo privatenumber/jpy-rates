@@ -53,6 +53,10 @@ const formatTopic = (topic: GuideTopic): string => {
 	}
 
 	lines.push('', style.bold('Fetch the rate'), `  ${topic.command}`);
+	if (topic.source === 'murc') {
+		// The rules name the user's own institution; MURC publishes MUFG Bank's rates
+		lines.push(style.dim('  This fetches MUFG Bank\'s rate. If the institution above publishes its own rate, use that rate when it differs.'));
+	}
 	return lines.join('\n');
 };
 

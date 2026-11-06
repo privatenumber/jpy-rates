@@ -7,9 +7,19 @@ import { formatTable } from '../format-table.ts';
 
 const fmtRate = (style: Ansis, value: number | null, decimals = 2): string => (value === null ? style.dim('—') : value.toFixed(decimals));
 
+// Up to 10 decimals for ordinary amounts; amounts below 1 keep 10 significant digits
+// so a small nonzero amount is not shown as 0
 const numberFormat = new Intl.NumberFormat('en-US', {
 	maximumFractionDigits: 10,
 });
+const smallNumberFormat = new Intl.NumberFormat('en-US', {
+	maximumSignificantDigits: 10,
+});
+const formatAmount = (value: number): string => (
+	Math.abs(value) < 1 ? smallNumberFormat.format(value) : numberFormat.format(value)
+);
+
+const sourceLine = (source: string | string[]) => `Source: ${Array.isArray(source) ? source.join(', ') : source}`;
 
 const rateColumns = [
 	{ header: 'Code' },
@@ -73,6 +83,7 @@ export const formatRates = (result: RatesResult, style: Ansis): string => {
 	if (hasUnitFootnote) {
 		sections.push('', style.dim(unitFootnote));
 	}
+	sections.push('', sourceLine(result.source));
 	return sections.join('\n');
 };
 
@@ -108,6 +119,7 @@ export const formatDaily = (result: DailyResult, style: Ansis): string => {
 		sections.push('', style.dim('Cash Rates'), formatTable(cashColumns, cashRows, style));
 	}
 
+	sections.push('', sourceLine(result.source));
 	return sections.join('\n');
 };
 
@@ -121,10 +133,11 @@ export const formatConversion = (result: ConvertCurrencyResult, style: Ansis): s
 
 	return [
 		style.bold(
-			`${numberFormat.format(result.amount)} ${result.from} = ${numberFormat.format(result.convertedAmount)} ${result.to}`,
+			`${formatAmount(result.amount)} ${result.from} = ${formatAmount(result.convertedAmount)} ${result.to}`,
 		),
 		`Rate: ${result.rate.toUpperCase()} ${fmtRate(style, result.rateValue)} JPY per ${result.unit} ${foreignCurrency}${result.purpose ? ` (purpose: ${result.purpose})` : ''}`,
 		`Date: ${dateLine}`,
+		'Bank: MUFG Bank customer rate, published by MURC',
 		`Source: ${result.source}`,
 	].join('\n');
 };
@@ -167,6 +180,7 @@ export const formatMonthly = (result: MonthlyResult, style: Ansis): string => {
 				header: 'Rate',
 				align: 'right' as const,
 			},
+			{ header: 'Quote date' },
 			{ header: 'Source' },
 		];
 		const localRows = localEntries.map(([code, rate]) => [
@@ -174,10 +188,17 @@ export const formatMonthly = (result: MonthlyResult, style: Ansis): string => {
 			fmtRate(style, rate.selling, 4),
 			fmtRate(style, rate.buying, 4),
 			fmtRate(style, rate.rate, 4),
+			rate.quoteDate ?? style.dim('—'),
 			rate.source,
 		]);
-		sections.push('', style.dim('Local Market Rates'), formatTable(localColumns, localRows, style));
+		sections.push(
+			'',
+			style.dim('Local Market Rates (per 1 USD, as quoted in each market)'),
+			formatTable(localColumns, localRows, style),
+		);
 	}
+
+	sections.push('', sourceLine(result.source));
 
 	return sections.join('\n');
 };
@@ -200,6 +221,7 @@ export const formatYearly = (result: YearlyResult, style: Ansis): string => {
 		sections.push('', style.dim(unitFootnote));
 	}
 
+	sections.push('', sourceLine(result.source));
 	return sections.join('\n');
 };
 
@@ -234,13 +256,16 @@ export const formatReference = (result: ReferenceResult, style: Ansis): string =
 			fmtRate(style, summary.average, 4),
 		]);
 
+		// The summary is read from the per-USD columns when the currency has them
+		const basis = currency.rates.perUsd ? 'per 1 USD' : `per ${currency.perJpyUnit ?? 1} JPY`;
 		sections.push(
 			'',
-			style.dim(`${code} — ${currency.sourceJa}`),
+			style.dim(`${code} (${basis}) — ${currency.sourceJa}`),
 			formatTable(summaryColumns, rows, style),
 		);
 	}
 
+	sections.push('', sourceLine(result.source));
 	return sections.join('\n');
 };
 
@@ -249,6 +274,7 @@ const regionKeys = ['asia', 'africa', 'europe', 'mideast', 'americas'] as const;
 const worldColumns = [
 	{ header: 'Country' },
 	{ header: 'Code' },
+	{ header: 'Official' },
 	{ header: 'Market Level' },
 ];
 
@@ -265,6 +291,7 @@ export const formatWorld = (result: WorldResult, style: Ansis): string => {
 		const rows = entries.map(entry => [
 			entry.country,
 			entry.code,
+			entry.quotation || style.dim('—'),
 			entry.marketLevel || style.dim('—'),
 		]);
 
@@ -275,6 +302,11 @@ export const formatWorld = (result: WorldResult, style: Ansis): string => {
 		);
 	}
 
+	sections.push(
+		'',
+		style.dim('Official (quotations by monetary authorities) and market levels are units of each currency per 1 USD unless noted.'),
+		sourceLine(result.source),
+	);
 	return sections.join('\n');
 };
 
@@ -316,6 +348,9 @@ export const formatArchive = (result: ArchiveResult, style: Ansis): string => {
 	];
 	if (hasUnitFootnote) {
 		sections.push('', style.dim(unitFootnote));
+	}
+	if (result.source) {
+		sections.push('', sourceLine(result.source));
 	}
 	return sections.join('\n');
 };
