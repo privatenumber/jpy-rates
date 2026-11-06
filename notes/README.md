@@ -11,7 +11,7 @@ The upstream folder owns the MURC FX site's observable behavior and data formats
 | Folder | Owns |
 | --- | --- |
 | [murc-fx-site/](./murc-fx-site/README.md) | Observed behavior of the MURC FX pages, CSVs, and XLS workbooks |
-| [jpy-rates/](./jpy-rates/README.md) | Project decisions: rate selection for tax purposes and source choice |
+| [jpy-rates/](./jpy-rates/README.md) | Project decisions: rate selection for tax purposes, source choice, and source terms |
 
 ## Evidence
 

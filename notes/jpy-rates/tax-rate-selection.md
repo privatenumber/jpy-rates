@@ -9,7 +9,7 @@ MURC's MUFG Bank rates are a sound general-purpose source, but no single rate is
 1. **Rate type.** Rules specify TTM, TTB, or TTS depending on the purpose. Defaulting to TTM is wrong for stock sales, dividends, and asset valuations.
 2. **Institution.** Most rules prefer the taxpayer's own bank, and some require a specific institution's rate, such as the bank holding a deposit or the paying broker. MUFG's rate is only the required rate when that institution is MUFG Bank. Otherwise it is acceptable under the "reasonable rate used consistently" clause where that clause applies.
 
-The package therefore keeps MURC as its only source, adds a `purpose` option that selects the rate type ([`src/api/conversion-purpose.ts`](../../src/api/conversion-purpose.ts)), and documents the institution caveats in the README.
+The package keeps MURC as its source for bank customer rates, adds a `purpose` option that selects the rate type ([`src/murc/conversion-purpose.ts`](../../src/murc/conversion-purpose.ts)), and documents the institution caveats in the README. `jpy-rates guide` ([`src/guide/topics.ts`](../../src/guide/topics.ts)) turns this note into a lookup: for each purpose it returns the rate, date rule, institution, exact rule excerpts, and the command that fetches the rate. Customs valuation and 外為法 reports use designated rates from other sources; see [source-terms.md](./source-terms.md).
 
 ## Rules by purpose
 
@@ -58,12 +58,12 @@ So for TTM-based rules the bank changes the result by about 0.01%, but for TTB-b
 | SMBC past rates ([backnumber](https://www.smbc.co.jp/market/backnumber/fixing/past.html)) | Rejected | Published as per-day PDFs | SMBC publishes machine-readable history |
 | Bank of Japan rates | Rejected | The BOJ publishes interbank center rates, not customer TTS/TTB/TTM | Never for customer-rate rules |
 | Generic FX APIs (the approach freee's foreign-currency app documents in its [help page](https://support.freee.co.jp/hc/ja/articles/360029065452)) | Rejected | Not a customer rate of any institution; acceptable only under the "reasonable rate used consistently" clause, which MURC already satisfies with a bank rate | — |
-| Keep MURC as the only source | Adopted | MUFG Bank's own customer rates; the day's final quote; TTS/TTB/TTM back to 1990 in HTML and XLS | — |
+| Keep MURC as the source for bank customer rates | Adopted | MUFG Bank's own customer rates; the day's final quote; TTS/TTB/TTM back to 1990 in HTML and XLS | — |
 
 Prior art found on GitHub (searched 2026-11-06 with `gh search code murc-kawasesouba`): [matsubo/ttsttb](https://github.com/matsubo/ttsttb) (Ruby, daily TTS/TTB) and [lowply/stock-exchange](https://github.com/lowply/stock-exchange) (Go, USD TTM for RSU calculations). Neither covers rate-type selection by purpose.
 
 ## Project behavior
 
-- `purpose` and `rate` are mutually exclusive; `rateTypeForPurpose` rejects unknown purposes. Tests: "purpose selects the rate type that tax rules specify" and "rejects combining rate and purpose, and unknown purposes" in [`tests/convert-currency.ts`](../../tests/convert-currency.ts), and "convert --purpose selects the rate type" in [`tests/cli.ts`](../../tests/cli.ts).
+- `purpose` and `rate` are mutually exclusive; `rateTypeForPurpose` rejects unknown purposes. Tests: "purpose selects the rate type that tax rules specify" and "rejects combining rate and purpose, and unknown purposes" in [`tests/murc/convert-currency.ts`](../../tests/murc/convert-currency.ts), and "convert --purpose selects the rate type" in [`tests/murc/cli.ts`](../../tests/murc/cli.ts).
 - `purpose` selects only the rate type. The caller passes the date the rule specifies, such as December 31 for `foreign-asset-report`; the package does not infer dates.
 - The README table under "Which rate type a rule specifies" is the user-facing copy of this note. Update both when a directive changes.

@@ -1,6 +1,6 @@
 # MURC FX source behavior
 
-Last verified 2026-11-06 against the live site, with Node 24 `fetch` and `redirect: 'manual'` (the same settings as [`src/api/fetch-source.ts`](../../src/api/fetch-source.ts)). The snippets below use the package's own `fetchSource` from the repository root, for example `node -e 'const { fetchSource } = await import("./src/api/fetch-source.ts"); ...'`.
+Last verified 2026-11-06 against the live site, with Node 24 `fetch` and `redirect: 'manual'` (the same settings as [`src/utils/fetch-source.ts`](../../src/utils/fetch-source.ts)). The snippets below use the package's own `fetchSource` from the repository root, for example `node -e 'const { fetchSource } = await import("./src/utils/fetch-source.ts"); ...'`.
 
 ## Dates without data redirect with HTTP 302
 
@@ -19,8 +19,8 @@ The site does not return 404 for a date without rates. It returns 302 to a fixed
 
 Project consequences:
 
-- `fetchShiftJisHtml` treats a redirect as "no data" only when the `Location` path is `/fx/index.php` or `/fx/past_3month.php`; any other redirect throws. Without this check, a maintenance redirect looked like a holiday, and the walkback silently returned an older day's rates.
-- Because out-of-range dates look like holidays, the library checks the range locally (`assertDateInRange` in [`src/api/utils.ts`](../../src/api/utils.ts)) instead of walking back 14 days and reporting "non-business day".
+- `fetchShiftJisHtml` ([`src/murc/fetch-source.ts`](../../src/murc/fetch-source.ts)) treats a redirect as "no data" only when the `Location` path is `/fx/index.php` or `/fx/past_3month.php`; any other redirect throws. Without this check, a maintenance redirect looked like a holiday, and the walkback silently returned an older day's rates.
+- Because out-of-range dates look like holidays, the library checks the range locally (`assertDateInRange` in [`src/utils/date.ts`](../../src/utils/date.ts)) instead of walking back 14 days and reporting "non-business day".
 
 ## Availability boundaries
 
@@ -37,7 +37,7 @@ Project consequences:
 
 ## The past-date endpoint has malformed rows
 
-`past_3month_result.php` omits most `<tr>` opening tags, so the parser groups `<td>` cells in sixes instead of reading rows (comment in [`src/api/fetch-rates.ts`](../../src/api/fetch-rates.ts)).
+`past_3month_result.php` omits most `<tr>` opening tags, so the parser groups `<td>` cells in sixes instead of reading rows (comment in [`src/murc/fetch-rates.ts`](../../src/murc/fetch-rates.ts)).
 
 With linkedom, `document.body` of a fragment without `<html><body>` is an empty synthetic element; `document.documentElement.textContent` holds the text. The daily heading parser uses `documentElement` for this reason.
 
@@ -74,7 +74,7 @@ Example row from `a_2024`, January 3: CNY 5.008 per 100 JPY, TWD 0.2196 per JPY,
 
 **Monthly summary sheets**: 1990-2000 workbooks have an `average` sheet with monthly averages only; there are no monthly highs or lows to report.
 
-**Excel serial dates**: converting with a local-time 1900 epoch shifts dates by one day in zones whose 1900 offset differs from today's, for example `Asia/Shanghai` (1900 LMT +08:05:43) and `Pacific/Apia`. The project converts in UTC; see the `excelDateToIso` test in [`tests/utils.ts`](../../tests/utils.ts).
+**Excel serial dates**: converting with a local-time 1900 epoch shifts dates by one day in zones whose 1900 offset differs from today's, for example `Asia/Shanghai` (1900 LMT +08:05:43) and `Pacific/Apia`. The project converts in UTC; see the `excelDateToIso` test in [`tests/murc/utils.ts`](../../tests/murc/utils.ts).
 
 ## Final quotes
 
