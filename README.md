@@ -1,20 +1,59 @@
-# murc-rates
+# jpy-rates
 
-Unofficial TypeScript client and CLI for exchange-rate data published by [MURC](https://www.murc-kawasesouba.jp/fx/index.php). Access [MUFG Bank](https://www.bk.mufg.jp/) daily and historical rates, cash rates, monthly and yearly summaries, and extended reference data quoted against JPY and USD. Daily TTS/TTB/TTM data covers 31 currencies back to 1990. Useful for currency conversion and tax-related recordkeeping workflows that need source-linked rates.
+Find the JPY exchange rate that a Japanese tax or reporting rule asks for, with the rule text and a source link. A TypeScript library and CLI over three public sources:
+
+| Source | Rates | Used for |
+| --- | --- | --- |
+| [MURC](https://www.murc-kawasesouba.jp/fx/index.php) | [MUFG Bank](https://www.bk.mufg.jp/) customer TTS/TTB/TTM since 1990, cash rates, monthly and yearly summaries | Income tax, stock sales and dividends, inheritance, 国外財産調書 |
+| [Japan Customs](https://www.customs.go.jp/tetsuzuki/kawase/index.htm) | Weekly rates for customs valuation | Imports (customs duty and import consumption tax) |
+| [Bank of Japan](https://www.boj.or.jp/about/services/tame/tame_rate/index.htm) | Monthly rates set by the Minister of Finance | Reports under the Foreign Exchange Act (外為法) |
 
 > [!NOTE]
-> This is an unofficial package, not affiliated with or endorsed by MUFG Bank, MURC, or the National Tax Agency. It fetches publicly available data from the [MURC FX pages](https://www.murc-kawasesouba.jp/fx/index.php). It is not tax, accounting, legal, investment, trading, or settlement advice.
+> This is an unofficial package, not affiliated with or endorsed by MUFG Bank, MURC, Japan Customs, the Bank of Japan, or the National Tax Agency. It fetches public data on request. It is not tax, accounting, legal, investment, trading, or settlement advice.
 
 ## Install
 
 ```bash
-pnpm add murc-rates
+pnpm add jpy-rates
 ```
 
-## Quick Start
+## Quick start: which rate applies?
+
+Start with the guide. It lists each purpose with the rate type, date rule, and source:
+
+```bash
+jpy-rates guide
+```
+
+Ask about one purpose to see the governing rule text and the command that fetches the rate:
+
+```bash
+jpy-rates guide stock-sale
+```
+
+Then fetch the rate:
+
+```bash
+jpy-rates murc convert -a 1000 -f USD -t JPY -d 2025-01-06 -p stock-sale
+```
+
+`jpy-rates sources` lists each source with its coverage and terms of use. Every command prints human-readable output; add `--json` for machine-readable output.
+
+The guide is also available as data:
 
 ```ts
-import { fetchRates } from 'murc-rates'
+import { getGuideTopic, guideTopics, rateSources } from 'jpy-rates'
+
+getGuideTopic('foreign-asset-report')
+// { rate: 'TTB (the final quote of the day)', date: 'December 31; ...', rules: [{ name: '国外送金等調書法通達5-14', url, excerpts }], command, ... }
+```
+
+## MURC (`jpy-rates/murc`)
+
+MUFG Bank's customer rates, published by MURC.
+
+```ts
+import { fetchRates } from 'jpy-rates/murc'
 
 const result = await fetchRates('2025-01-06')
 
@@ -38,7 +77,7 @@ const result = await fetchRates('2025-01-04') // Saturday
 result?.date // '2024-12-30' — last business day
 ```
 
-## Rate Types
+### Rate types
 
 Japanese banks publish three rates per currency pair:
 
@@ -50,40 +89,40 @@ Japanese banks publish three rates per currency pair:
 
 Tax rules specify different rate types for different purposes, such as TTB for stock sale proceeds. See [Which rate type a rule specifies](#which-rate-type-a-rule-specifies).
 
-## CLI
+### CLI
 
 ```bash
-murc-rates rates 2025-01-06               # daily rates for a date
-murc-rates rates 2025-01-06 -c USD        # filter to one currency
-murc-rates convert -a 100 -f USD -t JPY -d 2025-01-06
-murc-rates convert -a 100 -f USD -t JPY -d 2025-01-06 -p stock-sale   # TTB
-murc-rates daily                         # today's rates + cash rates
-murc-rates monthly 2025 1                # month-end + monthly average
-murc-rates yearly 2024                   # year-end + yearly average
-murc-rates world                         # 120+ countries vs USD
-murc-rates reference 2024                # TWD, BRL, etc. from local branches
-murc-rates download-source 2024 -o murc_2024.xls   # add --force to overwrite
-murc-rates parse-archive murc_2024.xls --json
+jpy-rates murc rates 2025-01-06               # daily rates for a date
+jpy-rates murc rates 2025-01-06 -c USD        # filter to one currency
+jpy-rates murc convert -a 100 -f USD -t JPY -d 2025-01-06
+jpy-rates murc convert -a 100 -f USD -t JPY -d 2025-01-06 -p stock-sale   # TTB
+jpy-rates murc daily                         # today's rates + cash rates
+jpy-rates murc monthly 2025 1                # month-end + monthly average
+jpy-rates murc yearly 2024                   # year-end + yearly average
+jpy-rates murc world                         # 120+ countries vs USD
+jpy-rates murc reference 2024                # TWD, BRL, etc. from local branches
+jpy-rates murc download-source 2024 -o murc_2024.xls   # add --force to overwrite
+jpy-rates murc parse-archive murc_2024.xls --json
 ```
 
 Output is human-readable tables by default. Add `--json` for machine-readable JSON. Colors are disabled when piped or when `NO_COLOR` is set. Currencies quoted per 100 units are marked with `*`. `--currency` is case-insensitive, and unknown flags are rejected.
 
-Conversions accept negative amounts, for example `murc-rates convert -a -100 -f USD -t JPY -d 2025-01-06`.
+Conversions accept negative amounts, for example `jpy-rates murc convert -a -100 -f USD -t JPY -d 2025-01-06`.
 
-## API
+### API
 
 Every result includes a `source` URL pointing to the page or file the data was parsed from. Rate values (`tts`, `ttb`, `ttm`) are `number | null` — `null` when the source doesn't publish that rate for a given currency. Main MUFG rate entries include `unit`: `1` for most currencies and `100` when the source quotes rates per 100 currency units.
 
-### Common behavior
+#### Common behavior
 
 - **Dates:** pass a `'YYYY-MM-DD'` string, or a `Date` at local midnight (`new Date(2025, 0, 6)`) or UTC midnight (`new Date('2025-01-06')`). Other `Date` values, such as `new Date()`, throw because their calendar date is ambiguous.
 - **Ranges:** requests outside the source's available range, or in the future in Japan time, throw a `RangeError` without making a request. Functions return `null` when the source has no data for an in-range request.
 - **Unexpected responses:** unexpected redirects and pages without the expected rate table throw instead of being treated as holidays.
 - **Cancellation:** every function that fetches accepts an optional last argument `{ signal }` with an `AbortSignal`. Aborting stops retries and business-day walkback.
 
-### Conversion
+#### Conversion
 
-#### convertCurrency(options)
+##### convertCurrency(options)
 
 Converts between JPY and one foreign currency using daily TTS/TTB/TTM rates. Defaults to `ttm`.
 
@@ -119,7 +158,7 @@ const result = await convertCurrency({
 // }
 ```
 
-#### convertWithRates(ratesResult, options)
+##### convertWithRates(ratesResult, options)
 
 Converts with an already-fetched `fetchRates()` result, without another request. Use it to convert many amounts with one quote. It takes the same `amount`, `from`, `to`, and `rate` options and returns the same result without `requestedDate`.
 
@@ -134,9 +173,9 @@ if (rates) {
 }
 ```
 
-### Daily rates
+#### Daily rates
 
-#### fetchRates(date)
+##### fetchRates(date)
 
 TTS/TTB/TTM for all currencies on a specific date. Available from 1990. The primary function for most use cases.
 
@@ -157,7 +196,7 @@ const result = await fetchRates('2025-01-06')
 // }
 ```
 
-#### fetchDaily(date?)
+##### fetchDaily(date?)
 
 Same rates as `fetchRates` plus **cash selling/buying rates** (physical currency exchange). Defaults to today's published page, and `date` is read from that page. Available from 2005-09-01.
 
@@ -182,9 +221,9 @@ const result = await fetchDaily()
 // }
 ```
 
-### Summaries
+#### Summaries
 
-#### fetchMonthly(year, month)
+##### fetchMonthly(year, month)
 
 Month-end rates and monthly averages. Available from September 2005.
 
@@ -216,7 +255,7 @@ const result = await fetchMonthly(2025, 1)
 // }
 ```
 
-#### fetchYearly(year)
+##### fetchYearly(year)
 
 Year-end rates and yearly averages. Available from 2003.
 
@@ -238,9 +277,9 @@ const result = await fetchYearly(2024)
 // }
 ```
 
-### Extended data
+#### Extended data
 
-#### fetchWorld()
+##### fetchWorld()
 
 Reference rates for 120+ countries/territories against USD, grouped by region. Updated monthly.
 
@@ -264,7 +303,7 @@ const result = await fetchWorld()
 // }
 ```
 
-#### fetchReference(year)
+##### fetchReference(year)
 
 Daily rates from local MUFG branches for currencies not in the main 31: `CNY`, `TWD`, `MYR` (from 2006), `KRW`, `IDR`, `BRL`, `ARS`, `CLP` (from 2009).
 
@@ -298,7 +337,7 @@ const result = await fetchReference(2024)
 // }
 ```
 
-### Archive source files
+#### Archive source files
 
 MURC publishes yearly XLS archive files. The package keeps source download and parsing as separate steps:
 
@@ -311,7 +350,7 @@ This avoids a combined public download-and-export API. Use the downloaded source
 Encrypted BIFF8 XLS workbooks are supported only when Excel's default password, `VelvetSweatshop`, passes password verification. Supported formats are standard RC4 version `1.1` and RC4 CryptoAPI versions `2.2`, `3.2`, and `4.2` with RC4/SHA-1 and explicit 40-128-bit keys in 8-bit increments. Other passwords, implicit CryptoAPI key sizes, XOR obfuscation, and other encryption formats are unsupported. Password mismatches, unsupported formats, and malformed encryption metadata produce distinct errors. Parsing keeps all transformations in memory and does not modify the input bytes.
 
 ```ts
-import { downloadArchiveSource, getArchiveSourceUrl, parseArchiveWorkbook } from 'murc-rates'
+import { downloadArchiveSource, getArchiveSourceUrl, parseArchiveWorkbook } from 'jpy-rates/murc'
 
 const xlsBuffer = await downloadArchiveSource(2024)
 const result = await parseArchiveWorkbook(xlsBuffer, {
@@ -342,7 +381,7 @@ const result = await parseArchiveWorkbook(xlsBuffer, {
 
 ## Tax-Related Context
 
-This package provides source-linked exchange-rate data. It is not tax, accounting, or legal advice, and it does not decide which rate applies to your filing. The summary below links to the NTA rules so you can check them.
+This package provides source-linked exchange-rate data. It is not tax, accounting, or legal advice, and it does not decide which rate applies to your filing. The summary below links to the rules so you can check them; `jpy-rates guide <topic>` prints the same information with exact excerpts of the rule text.
 
 ### MURC publishes MUFG Bank's rates
 
@@ -352,7 +391,7 @@ How much the choice of bank matters depends on the rate type. Major banks' TTMs 
 
 ### Which rate type a rule specifies
 
-| Purpose | `purpose` option | Rate | Whose rate | Rule |
+| Purpose | Guide topic / `purpose` | Rate | Whose rate | Rule |
 | --- | --- | --- | --- | --- |
 | General income, salary, stock option exercise | `general` | TTM on the transaction date | Your main bank, or a reasonable rate used consistently | [所基通57の3-2](https://www.nta.go.jp/law/tsutatsu/kihon/shotoku/11a/01.htm) |
 | Foreign stock sale proceeds | `stock-sale` | TTB on the trade date | The paying broker, if it publishes a rate | [措通37の10・37の11共-6](https://www.nta.go.jp/law/tsutatsu/kobetsu/shotoku/sochiho/020624/sanrin/1273/37_10-11/01.htm) |
@@ -361,8 +400,10 @@ How much the choice of bank matters depends on the rate type. Major banks' TTMs 
 | Inherited or gifted assets | `inheritance-asset` | Final TTB on the valuation date | Your bank; for a deposit, the bank holding it | [財産評価基本通達4-3](https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/01/01.htm) |
 | Inherited debts | `inheritance-debt` | Final TTS on the valuation date | Same as above | Same |
 | 国外財産調書 | `foreign-asset-report` | TTB on December 31 | Your bank; for a deposit, the bank holding it | [国外送金等調書法通達5-14](https://www.nta.go.jp/law/tsutatsu/kobetsu/hotei/2207xx/pdf/01.pdf) |
+| Customs value of imports | `import` (guide only) | Customs weekly rate for the week of the declaration | Japan Customs | [関税定率法4条の7](https://www.customs.go.jp/tetsuzuki/c-answer/imtsukan/1406_jr.htm) |
+| Reports under the Foreign Exchange Act | `foreign-exchange-report` (guide only) | Basic or cross rate for the month; some reports use the reporting ordinance rate | Bank of Japan announcement | [外国為替令21条](https://www.boj.or.jp/about/services/tame/tame_rate/exhou.htm) |
 
-`purpose` only selects the rate type; you still pass the date the rule specifies. When the date has no published rate, every rule above uses the nearest earlier date, which is what `fetchRates` returns.
+The `purpose` option of `convertCurrency` covers the MURC rows and only selects the rate type; you still pass the date the rule specifies. When the date has no published rate, every rule above uses the nearest earlier date, which is what `fetchRates` returns.
 
 ```ts
 const result = await convertCurrency({
@@ -382,17 +423,19 @@ MURC has corrected historical values before: its archive page announced correcti
 
 Always verify calculations against the official source pages and consult a qualified professional for your specific situation.
 
-## Data Source
-
-Rates are published on the [MURC FX pages](https://www.murc-kawasesouba.jp/fx/index.php) (三菱UFJリサーチ＆コンサルティング), labeled as [MUFG Bank](https://www.bk.mufg.jp/) exchange quotations.
-
-MURC's [FX FAQ](https://www.murc-kawasesouba.jp/fx/faq/faq.pdf) describes these pages as foreign-exchange information and notes that displayed rates are reference values. Rate availability, timing, and revisions are controlled by the source site.
-
 ## Legal And Source Use
 
-This package is an unofficial software client. It is not affiliated with, authorized by, sponsored by, or endorsed by MUFG Bank, MURC, or the National Tax Agency.
+This package is an unofficial software client. It is not affiliated with, authorized by, sponsored by, or endorsed by MUFG Bank, MURC, Japan Customs, the Bank of Japan, or the National Tax Agency.
 
-The package fetches public source pages at runtime with an identifying user-agent that points to the npm package page, and returns parsed rate facts with source URLs. It does not grant permission to copy, redistribute, republish, or sell MURC pages, CSV files, XLS files, or other source content. Review and follow the applicable MURC/MUFG terms, including MURC's [site-use terms](https://www.murc.jp/about/), before using this package in public, commercial, cached, or high-volume systems.
+The package fetches public source pages at runtime, on request, with an identifying user-agent that points to the npm package page. It returns parsed rate facts with source URLs and attribution; it does not bundle source data. Each source has its own terms:
+
+| Source | Terms | What you need to do |
+| --- | --- | --- |
+| MURC | [MURC site-use terms](https://www.murc.jp/about/) | Follow MURC's terms. This package does not grant permission to copy, redistribute, republish, or sell MURC pages, CSV files, XLS files, or other source content. Review the terms before public, commercial, cached, or high-volume use. |
+| Japan Customs | [Customs terms](https://www.customs.go.jp/kyotsu/rules.htm), [PDL1.0](https://www.digital.go.jp/resources/open_data/public_data_license_v1.0) | Credit the source (results include an `attribution` string in the PDL1.0 format) and label values you derived. |
+| Bank of Japan | [BOJ copyright and disclaimer](https://www.boj.or.jp/about/copyright.htm) | Credit the source. Commercial copying needs prior consultation with the BOJ. |
+
+MURC's [FX FAQ](https://www.murc-kawasesouba.jp/fx/faq/faq.pdf) describes its pages as foreign-exchange information and notes that displayed rates are reference values. Rate availability, timing, and revisions are controlled by each source site.
 
 Rate data can change, be delayed, or be unavailable. Verify important results against the linked source URLs. Do not use this package as the sole source for tax filing, accounting, legal, investment, trading, settlement, or real-time financial decisions.
 
@@ -401,7 +444,7 @@ Rate data can change, be delayed, or be unavailable. Verify important results ag
 
 | Source | History | Rates | Notes |
 | --- | --- | --- | --- |
-| [MUFG / MURC](https://www.murc-kawasesouba.jp/fx/past_3month.php) (this package) | Daily quotes since 1990 | TTS / TTB / TTM | Coverage varies by endpoint (yearly from 2003, monthly from 2005-09) |
+| [MUFG / MURC](https://www.murc-kawasesouba.jp/fx/past_3month.php) (`jpy-rates/murc`) | Daily quotes since 1990 | TTS / TTB / TTM | Coverage varies by endpoint (yearly from 2003, monthly from 2005-09) |
 | [Mizuho Bank](https://www.mizuhobank.co.jp/market/historical/index.html) | Public data from 2002 | CSV/text: middle only; [PDF backnumbers](https://www.mizuhobank.co.jp/market/historical/backnumber_b/index.html) include TTS / TTB / central | Historical page has both middle-rate data files and full quote PDFs |
 | [SMBC](https://www.smbc.co.jp/market/backnumber/fixing/past.html) | Monthly | Middle only | USD, CHF, GBP, EUR only |
 | [Bank of Japan](https://www.boj.or.jp/en/statistics/market/forex/fxdaily/index.htm) | Since 2007 | Interbank mid | Not customer rates |
@@ -413,5 +456,7 @@ Rate data can change, be delayed, or be unavailable. Verify important results ag
 - [MURC foreign exchange main page](https://www.murc-kawasesouba.jp/fx/index.php)
 - [MURC FX FAQ PDF](https://www.murc-kawasesouba.jp/fx/faq/faq.pdf)
 - [MURC site-use terms](https://www.murc.jp/about/)
+- [Japan Customs exchange rates](https://www.customs.go.jp/tetsuzuki/kawase/index.htm)
+- [Bank of Japan conversion rates for reports](https://www.boj.or.jp/about/services/tame/tame_rate/index.htm)
 - [NTA basic directive 57の3-2](https://www.nta.go.jp/law/tsutatsu/kihon/shotoku/11a/01.htm)
 - [NTA foreign-asset FAQ PDF](https://www.nta.go.jp/publication/pamph/hotei/kokugai_zaisan/pdf/kokugai_faq_h2_01.pdf)

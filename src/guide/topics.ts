@@ -92,7 +92,10 @@ export const guideTopics: GuideTopic[] = [
 				excerpts: ['権利行使時の電信売買相場の仲値（TTM）で日本円に換算'],
 			},
 		],
-		notes: [mainBankNote],
+		notes: [
+			mainBankNote,
+			'RSU vest income is also salary income; the general TTM rule (所得税基本通達57の3-2) applies on the vest date. Inference from the general rule; the NTA example covers stock options.',
+		],
 		command: 'jpy-rates murc convert -a <amount> -f <currency> -t JPY -d <exercise-date> -p general',
 	},
 	{
