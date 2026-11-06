@@ -130,8 +130,8 @@ Requires Node.js 22.22.2 or later. Run the CLI without installing via `npx jpy-r
 
 ## Documentation
 
-- [CLI](./docs/CLI.md): every command and flag
-- [Node.js API](./docs/NODE.md): entry points, functions, and result shapes
+- [CLI](./docs/cli.md): every command and flag
+- [Node.js API](./docs/node.md): entry points, functions, and result shapes
 
 ## Before you file
 
