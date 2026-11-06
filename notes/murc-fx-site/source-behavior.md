@@ -64,7 +64,7 @@ The local market tables on `monthend/index.php` (`table.data-table7` after the f
 ## World and local market quote basis
 
 - World rates (`world.html` and `worlddata/<region>.csv`): the page notes say `基準相場および為替相場各欄は、特記なき限り対米ドル相場（1米ドルにつき各通貨単位）` and `Rates in 'Quotations by Monetary Authorities' and 'Market Levels' columns are against the US dollar (each currency for US$1) rates, unless otherwise indicated`. So the CSV `quotations` column is the official rate (often a peg such as `B$ 1=S$ 1`, or a number such as `2.7` for EC$), not a quote direction. On 2026-11-07, 104 of 122 rows had an empty `quotations` field. The CSV header row spells the first column `countory` in four regions and `country` in `mideast`; `parseCsv` validates the six other column names.
-- Monthly local market rates (`monthend/index.php`): the table is headed `諸通貨の現地における相場 Rates against the US dollar quoted in other markets`, so the CLI labels them per 1 USD. The 2026-10 page also showed a PHP warning (`require_once(inc/2610.html): Failed to open stream`) inside that section on 2026-11-07.
+- Monthly local market rates (`monthend/index.php`): the table is headed `諸通貨の現地における相場 Rates against the US dollar quoted in other markets`, so the CLI labels them per 1 USD. On 2026-11-07 the 2026-10 page showed a PHP warning (`require_once(inc/2610.html): Failed to open stream`) in place of that section, while 2026-09 listed 13 local rates. The include file for the latest month is likely uploaded later, so `fetchMonthly` returns the valid month-end and average rates with an empty `localMarketRates` rather than throwing. Throwing would hide the month-end rates that tax rules use. Check the latest month again if local rates are needed.
 
 ## Rate invariants
 
