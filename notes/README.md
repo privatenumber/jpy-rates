@@ -4,13 +4,15 @@ Tracked maintainer references for the sources and rules that shape jpy-rates. No
 
 ## Ownership
 
-The upstream folder owns the MURC FX site's observable behavior and data formats. The jpy-rates folder owns project policy, such as which rates the API selects and why, and links to upstream evidence.
+Each upstream folder owns one source site's observable behavior and data formats. The jpy-rates folder owns project policy, such as which rates the API selects and why, and links to upstream evidence.
 
 ## Index
 
 | Folder | Owns |
 | --- | --- |
 | [murc-fx-site/](./murc-fx-site/README.md) | Observed behavior of the MURC FX pages, CSVs, and XLS workbooks |
+| [customs-site/](./customs-site/README.md) | Observed behavior of the Japan Customs weekly rate index and PDFs |
+| [boj-site/](./boj-site/README.md) | Observed behavior of the BOJ conversion-rate pages and workbooks |
 | [jpy-rates/](./jpy-rates/README.md) | Project decisions: rate selection for tax purposes, source choice, and source terms |
 
 ## Evidence
