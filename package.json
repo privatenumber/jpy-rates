@@ -60,7 +60,7 @@
 		"node": ">=22.22.2"
 	},
 	"dependencies": {
-		"ansis": "^4.4.0",
+		"ansis": "^4.5.0",
 		"cleye": "3.0.0-beta.2",
 		"linkedom": "^0.18.13",
 		"officecrypto-tool": "^0.0.19",

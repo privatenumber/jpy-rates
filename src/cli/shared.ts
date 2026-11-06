@@ -1,12 +1,8 @@
-import ansis, { Ansis } from 'ansis';
+import ansis from 'ansis';
 
-// ansis detects NO_COLOR and FORCE_COLOR, but also enables color for non-TTY
-// output when COLORTERM is set. Keep piped output plain unless FORCE_COLOR asks otherwise.
-export const style = new Ansis(
-	process.env.FORCE_COLOR !== undefined || process.stdout.isTTY
-		? ansis.level
-		: 0,
-);
+// Detects TTY, NO_COLOR, FORCE_COLOR, and COLORTERM. ansis 4.5.0 keeps piped
+// output plain even when COLORTERM is set.
+export const style = ansis;
 
 export const fail = (message: string): never => {
 	console.error(message);
