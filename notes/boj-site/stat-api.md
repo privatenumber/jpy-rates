@@ -17,6 +17,11 @@ Observed on 2026-11-07 against `https://www.stat-search.boj.or.jp/api/v1/getData
 - The current month's monthly series is listed with `null` until the month ends. On 2026-11-07 both effective indices ended at 2026-09; the package does not assume either is published first.
 - Errors are HTTP 400 with a gzip body and `Content-Encoding: gzip`. fetch decodes it to JSON such as `{"STATUS":400,"MESSAGEID":"M181013E","MESSAGE":"Nonexistent series code：1"}`; raw `curl` output looks binary.
 
+## Client behavior
+
+- A caller abort while the response body is read rejects with the caller's reason, not "unreadable response" ([`src/boj/stat-api.ts`](../../src/boj/stat-api.ts)).
+- Month bounds are compared as numbers. As strings, year 99 (`99-01`) sorted after `1998-01` and sent a request with `startDate=9901`.
+
 ## Series used
 
 | Code | Frequency | Starts | Meaning |

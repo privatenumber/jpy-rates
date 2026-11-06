@@ -1,3 +1,5 @@
+import { setTimeout } from 'node:timers/promises';
+
 // Synthetic BOJ Time-Series Data Search API responses. No source values are stored.
 const endpoint = 'https://www.stat-search.boj.or.jp/api/v1/getDataCode';
 
@@ -60,6 +62,15 @@ export const statFixture = (url: string): Response | undefined => {
 			});
 		}
 		case 'FM09 FX180 202603': { return ok(codes, [202_602], () => 70); }
+		// The body fails while it is read, as a connection reset or an abort would
+		case 'FM09 FX180 202604': {
+			return new Response(new ReadableStream({
+				async pull(controller) {
+					await setTimeout(50);
+					controller.error(new Error('body read failed'));
+				},
+			}));
+		}
 		// Dates out of order
 		case 'FM08 FXERD 202609': { return ok(codes, [20_260_902, 20_260_901], () => 100); }
 		case 'FM09 FX180 197001': {

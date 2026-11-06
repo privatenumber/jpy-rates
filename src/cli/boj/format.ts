@@ -13,6 +13,10 @@ export const formatBasic = (result: BasicRatesResult, style: Ansis, showBasic = 
 		...result.reference
 			.filter(row => row.usd === null)
 			.map(row => [row.code ?? row.nameJa, row.unit, null, 'no rate published'] as const),
+		// A currency name this package cannot map to a code has no derived rate, but stays visible
+		...result.reference
+			.filter(row => row.code === null && row.usd !== null)
+			.map(row => [row.nameJa, row.unit, null, `unmapped name, ${row.usd} USD`] as const),
 	];
 	const rows = entries.map(([code, unit, rate, basis]) => [
 		unit === 1 ? code : `${code}*`, String(unit), rate === null ? style.dim('—') : String(rate), basis,

@@ -93,7 +93,11 @@ export const fetchSeries = async (
 	const response = await fetchSource(source, options);
 
 	// Errors are JSON too, such as {"STATUS":400,"MESSAGE":"Nonexistent series code：1"}
-	const body = await response.json().catch(() => undefined) as ApiResponse | undefined;
+	const body = await response.json().catch(() => {
+		// A caller abort while reading the body is cancellation, not a BOJ error
+		options?.signal?.throwIfAborted();
+		return undefined;
+	}) as ApiResponse | undefined;
 	if (!response.ok || body?.STATUS !== 200) {
 		throw new Error(`BOJ API error (HTTP ${response.status}): ${body?.MESSAGE ?? 'unreadable response'}: ${source}`);
 	}
@@ -121,10 +125,12 @@ export const statMonth = (year: number, month: number, earliest: string) => {
 		throw new RangeError(`Invalid month: ${year}-${String(month).padStart(2, '0')}`);
 	}
 	const paddedMonth = String(month).padStart(2, '0');
-	const formatted = `${year}-${paddedMonth}`;
-	if (formatted < earliest || year > 2099) {
+	// Compared as numbers: as strings, year 99 ("99-01") would sort after "1998-01"
+	const [earliestYear, earliestMonth] = earliest.split('-').map(Number) as [number, number];
+	if (year * 12 + month < earliestYear * 12 + earliestMonth || year > 2099) {
 		throw new RangeError(`Month must be between ${earliest} and 2099-12`);
 	}
+	const formatted = `${year}-${paddedMonth}`;
 	return {
 		month: formatted,
 		period: `${year}${paddedMonth}`,

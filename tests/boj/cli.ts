@@ -20,6 +20,11 @@ if (!process.env.JPY_RATES_LIVE) {
 			expect(output).toContain('MMK');
 			expect(output).toContain('no rate published');
 		});
+		test('basic shows currency names it cannot map to a code', async () => {
+			const output = await run('basic', '2026-11');
+			expect(output).toContain('未知通貨');
+			expect(output).toContain('unmapped name, 0.5 USD');
+		});
 		test('reporting JSON filters currencies', async () => {
 			const output = await run('reporting', '2026-11', '-c', 'krw', '--json');
 			expect(JSON.parse(output).rates).toStrictEqual({

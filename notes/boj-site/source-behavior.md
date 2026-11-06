@@ -28,6 +28,9 @@ Both indexes ([基準・裁定](https://www.boj.or.jp/about/services/tame/tame_r
 - A listed currency can have a dash instead of a rate: MMK in 2021-05 appears as `1ミャンマー・チャットにつき─米ドル` on the basic page and `─` in the reporting workbook. The adapter keeps such rows with `usd: null` instead of dropping them.
 - A sweep on 2026-11-07 parsed every month from 2016-01 to 2026-11 for both datasets: 131 basic pages (55 reference rows each, 54 in 2021-05 before the dash fix) and 131 reporting publications (62 entries), with no unmapped currency names.
 
+- Numbers are parsed as plain decimals (`\d+(?:\.\d+)?`). A list item shaped like a rate (`…につき…米ドル`) that does not parse throws, so a malformed value such as `0..0800` cannot become `NaN` and then serialize as `null`, which would look like a published dash. A sweep on 2026-11-07 parsed all 262 publications (2016-01 to 2026-11) with these rules.
+- The CLI table also lists currency names the package cannot map to a code, with their USD quote, so they are not hidden. The sweep found no such names.
+
 ## Derived JPY rates
 
 Each announcement defines other currencies as `当該通貨のアメリカ合衆国通貨に対する市場実勢を基準外国為替相場をもって裁定した相場` (for example [kiju2611.htm](https://www.boj.or.jp/about/services/tame/tame_rate/kijun/kiju2611.htm)). `arbitrated` computes `usd × basic` with `multiplyDecimals`, which removes floating-point noise without rounding (see [numeric-precision.md](../jpy-rates/numeric-precision.md)); the BOJ states no rounding. Examples for 2026-11: KRW 11.4816 JPY per 100, VES 0.19032 JPY per 1.

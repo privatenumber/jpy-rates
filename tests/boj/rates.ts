@@ -88,6 +88,11 @@ if (!process.env.JPY_RATES_LIVE) {
 			expect(result!.rates.MMK!.usd).toBeNull();
 		});
 
+		test('rejects malformed numbers instead of returning NaN', async () => {
+			await expect(fetchBasicRates(2021, 4)).rejects.toThrow('Unexpected BOJ market rate "100韓国ウォンにつき0..0800米ドル"');
+			await expect(fetchReportingRates(2016, 5)).rejects.toThrow('Unexpected BOJ reporting rate');
+		});
+
 		test('rejects malformed published pages', async () => {
 			await expect(fetchBasicRates(2026, 10)).rejects.toThrow('Unexpected BOJ');
 		});

@@ -35,6 +35,11 @@ export const bojFixture = (url: string): Response | undefined => {
 		return new Response('<main id="contents"><h1>平成28年4月分</h1><ul><li>115円(115JPY)につき1米ドル</li><li>1通貨(1CAD)につき0.725米ドル</li><li>1通貨(1EUR)につき1.13米ドル</li><li>1通貨(1MMK)につき─米ドル</li></ul></main>');
 	}
 	if (url.endsWith('/syorei/data/hou2105.xlsx')) { return new Response(new Uint8Array(workbook('令和3年5月分', [[null, 1, 'ミャンマー・チャット (1 MMK)', null, null, null, null, null, '  〃', null, '─']]))); }
+	// A malformed market rate (two decimal points) must not become NaN
+	if (url.endsWith('/kijun/kiju2104.htm')) { return new Response(basic('令和3年4月', '令和3年2月').replace('0.0800', '0..0800')); }
+	if (url.endsWith('/syorei/hou1605.htm')) {
+		return new Response('<main id="contents"><h1>平成28年5月分</h1><ul><li>115円(115JPY)につき1米ドル</li><li>1通貨(1CAD)につき0..725米ドル</li></ul></main>');
+	}
 	if (url.endsWith('/kijun/kiju2610.htm')) { return new Response('<main id="contents"><h1>invalid</h1></main>'); }
 	if (url.endsWith('/syorei/hou1601.htm')) {
 		return new Response('<main id="contents"><h1>平成28年1月分</h1><ul><li>140円 (140 JPY)につき1米ドル</li><li>1通貨 (1 CAD)につき0.75米ドル</li><li>1通貨 (1 EUR)につき1.2米ドル</li><li>100通貨 (100 KRW)につき0.08米ドル</li></ul></main>');

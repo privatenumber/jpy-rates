@@ -30,20 +30,24 @@ export const fetchBasicRates = async (
 	const contents = document.querySelector('#contents');
 	const title = contents?.querySelector('h1')?.textContent ?? '';
 	const basicText = Array.from(contents?.querySelectorAll('p') ?? []).map(element => element.textContent ?? '').find(text => text.includes('1米ドルにつき本邦通貨'));
-	const basic = Number(basicText?.normalize('NFKC').match(/1米ドルにつき本邦通貨\s*[:：]\s*([\d.]+)円/)?.[1]);
+	const basic = Number(basicText?.normalize('NFKC').match(/1米ドルにつき本邦通貨\s*[:：]\s*(\d+(?:\.\d+)?)円/)?.[1]);
 	const referenceHeading = Array.from(contents?.querySelectorAll('h4') ?? []).find(element => element.textContent?.includes('市場実勢相場'));
 	const referenceMonth = japaneseMonth(referenceHeading?.textContent ?? '');
 	const cross: Record<string, number> = {};
 	for (const row of contents?.querySelectorAll('tr') ?? []) {
 		const text = (row.textContent ?? '').normalize('NFKC').replaceAll(/\s/g, '');
-		const match = text.match(/\(1(.+?)につき本邦通貨\)([\d.]+)円/);
+		const match = text.match(/\(1(.+?)につき本邦通貨\)(\d+(?:\.\d+)?)円/);
 		if (match && crossNames[match[1]!]) { cross[crossNames[match[1]!]!] = Number(match[2]); }
 	}
 	const reference: BasicRatesResult['reference'] = [];
 	for (const element of contents?.querySelectorAll('li') ?? []) {
 		const text = (element.textContent ?? '').normalize('NFKC').replaceAll(/\s/g, '');
-		// A dash (─) means no market rate was published for the currency that month
-		const match = text.match(/^(\d+)(\D+?)につき([\d.]+|[─―－-])米ドル$/);
+		// A dash (─) means no market rate was published for the currency that month.
+		// A row shaped like a rate that does not parse, such as 0..08, is an error rather than NaN.
+		const match = text.match(/^(\d+)(\D+?)につき(\d+(?:\.\d+)?|[─―－-])米ドル$/);
+		if (!match && text.includes('につき') && text.endsWith('米ドル')) {
+			throw new Error(`Unexpected BOJ market rate "${text}": ${source}`);
+		}
 		if (match) {
 			const nameJa = match[2]!;
 			// BOJ reporting labels use VEB through 2018-09 and VES from 2018-10.
@@ -54,7 +58,7 @@ export const fetchBasicRates = async (
 				code,
 				nameJa,
 				unit: Number(match[1]),
-				usd: /^[\d.]+$/.test(match[3]!) ? Number(match[3]) : null,
+				usd: /^\d+(?:\.\d+)?$/.test(match[3]!) ? Number(match[3]) : null,
 			});
 		}
 	}

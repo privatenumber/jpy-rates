@@ -14,13 +14,16 @@ const parseHtml = (html: string, month: string): Record<string, ReportingRate> =
 	for (const element of contents?.querySelectorAll('li') ?? []) {
 		const text = (element.textContent ?? '').normalize('NFKC');
 		// From 2016-04 the pages omit the space, e.g. (115JPY); a dash (─) means no published rate
-		const match = text.match(/\(\s*([\d.]+)\s*([A-Z]{3})\s*\)\s*につき\s*([\d.]+|[─―－-])\s*米ドル/);
+		const match = text.match(/\(\s*(\d+(?:\.\d+)?)\s*([A-Z]{3})\s*\)\s*につき\s*(\d+(?:\.\d+)?|[─―－-])\s*米ドル/);
+		if (!match && /につき.*米ドル/.test(text)) {
+			throw new Error(`Unexpected BOJ reporting rate "${text.trim()}"`);
+		}
 		if (match) {
 			const [, unit, code, usd] = match;
 			rates[code!] = {
 				code: code!,
 				unit: Number(unit),
-				usd: /^[\d.]+$/.test(usd!) ? Number(usd) : null,
+				usd: /^\d+(?:\.\d+)?$/.test(usd!) ? Number(usd) : null,
 			};
 		}
 	}
@@ -39,7 +42,7 @@ const parseWorkbook = (data: ArrayBuffer, month: string): Record<string, Reporti
 	const rates: Record<string, ReportingRate> = {};
 	for (const row of rows) {
 		const label = row.slice(2, 6).join('').normalize('NFKC');
-		const match = label.match(/\(\s*([\d.]+)\s*([A-Z]{3})\s*\)/);
+		const match = label.match(/\(\s*(\d+(?:\.\d+)?)\s*([A-Z]{3})\s*\)/);
 		if (!match) { continue; }
 		const code = match[2]!;
 		const value = row[10];

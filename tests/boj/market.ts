@@ -1,3 +1,4 @@
+import { setTimeout } from 'node:timers/promises';
 import { describe, expect, test } from 'manten';
 import spawn from 'nano-spawn';
 import {
@@ -109,6 +110,15 @@ if (process.env.JPY_RATES_LIVE) {
 			await expect(fetchEffectiveRates(2026, 3)).rejects.toThrow('date 202602 outside 202603');
 		});
 
+		test('an abort while reading the response is reported as the caller\'s reason', async () => {
+			// The fixture body fails 50 ms after the response arrives; the caller aborts first
+			const controller = new AbortController();
+			const pending = fetchEffectiveRates(2026, 4, { signal: controller.signal });
+			await setTimeout(10);
+			controller.abort(new Error('caller stopped'));
+			await expect(pending).rejects.toThrow('caller stopped');
+		});
+
 		test('daily rates are in date order', async () => {
 			const result = await fetchDailyMarketRates(2026, 9);
 			expect(result!.days.map(day => day.date)).toStrictEqual(['2026-09-01', '2026-09-02']);
@@ -118,6 +128,8 @@ if (process.env.JPY_RATES_LIVE) {
 			await expect(fetchDailyMarketRates(1997, 12)).rejects.toThrow('Month must be between 1998-01 and 2099-12');
 			await expect(fetchMonthlyMarketRates(2026, 13)).rejects.toThrow('Invalid month: 2026-13');
 			await expect(fetchMonthlyMarketRates(2026, 0)).rejects.toThrow('Invalid month: 2026-00');
+			// As strings, "99-01" would sort after "1998-01" and send a request
+			await expect(fetchDailyMarketRates(99, 1)).rejects.toThrow('Month must be between 1998-01 and 2099-12');
 		});
 
 		const run = async (...args: string[]) => {
