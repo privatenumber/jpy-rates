@@ -246,7 +246,8 @@ export const guideTopics: GuideTopic[] = [
 			},
 		],
 		notes: [
-			'Reports listed under 報告省令第35条第2号 use the reporting ordinance rate instead: jpy-rates boj reporting <YYYY-MM>.',
+			'Reports listed under 報告省令第35条第2号 use the reporting ordinance rate (報告省令レート) instead. It converts amounts to US dollars for reports that state amounts in USD: jpy-rates boj reporting <YYYY-MM>.',
+			'Currencies without a published cross rate are converted at their USD market rate times the basic rate, as stated in each monthly announcement; jpy-rates shows these as derived rows.',
 			'To decide whether a payment must be reported, a payment that involved a currency exchange uses that exchange\'s rate (日本銀行「外為法の報告制度について」).',
 		],
 		command: 'jpy-rates boj basic <YYYY-MM> -c <currency>',
