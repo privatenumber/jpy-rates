@@ -109,6 +109,6 @@ export const formatEffective = (result: EffectiveRatesResult, style: Ansis): str
 		['Nominal', rateText(result.nominal, style)],
 		['Real', rateText(result.real, style)],
 	], style),
-	style.dim('Higher means a stronger yen. The real index is published about a month after the nominal index.'),
+	style.dim('Higher means a stronger yen. — means the BOJ has not published the index.'),
 	...footer(result),
 ].join('\n');

@@ -14,14 +14,17 @@ type ApiResponse = {
 	STATUS: number;
 	MESSAGEID: string;
 	MESSAGE: string;
-	RESULTSET?: {
-		SERIES_CODE: string;
-		UNIT?: string;
-		VALUES: {
-			SURVEY_DATES: number[];
-			VALUES: (number | null)[];
-		};
-	}[];
+	RESULTSET?: ApiSeries[];
+};
+
+// Fields are typed as unknown because they are validated before use
+type ApiSeries = {
+	SERIES_CODE: string;
+	UNIT?: string;
+	VALUES?: {
+		SURVEY_DATES?: unknown;
+		VALUES?: unknown;
+	};
 };
 
 export type Series = {
@@ -34,6 +37,37 @@ export type Series = {
 export type SeriesResult = {
 	source: string;
 	series: Record<string, Series>;
+};
+
+// Returns the series values in date order, or throws if the response is not
+// a list of numbers or nulls for dates inside the requested period
+const parseValues = (
+	entry: ApiSeries,
+	period: string,
+	source: string,
+): Map<number, number | null> => {
+	const dates = entry.VALUES?.SURVEY_DATES;
+	const values = entry.VALUES?.VALUES;
+	const fail = (detail: string) => new Error(
+		`Unexpected BOJ API values for ${entry.SERIES_CODE} (${detail}): ${source}`,
+	);
+	if (!Array.isArray(dates) || !Array.isArray(values) || dates.length !== values.length) {
+		throw fail('missing or mismatched arrays');
+	}
+	const pairs: [number, number | null][] = [];
+	for (const [index, date] of dates.entries()) {
+		// Daily dates are YYYYMMDD within the month; monthly dates equal the period
+		if (typeof date !== 'number' || !String(date).startsWith(period)) {
+			throw fail(`date ${String(date)} outside ${period}`);
+		}
+		const value: unknown = values[index];
+		if (value !== null && !(typeof value === 'number' && Number.isFinite(value))) {
+			throw fail(`value ${JSON.stringify(value)} on ${date}`);
+		}
+		pairs.push([date, value]);
+	}
+	if (pairs.length === 0) { throw fail(`no dates for ${period}`); }
+	return new Map(pairs.sort(([a], [b]) => a - b));
 };
 
 /**
@@ -67,10 +101,9 @@ export const fetchSeries = async (
 
 	const series: Record<string, Series> = {};
 	for (const entry of body.RESULTSET ?? []) {
-		const { SURVEY_DATES: dates, VALUES: values } = entry.VALUES;
 		series[entry.SERIES_CODE] = {
 			unit: entry.UNIT ?? '',
-			values: new Map(dates.map((date, index) => [date, values[index] ?? null])),
+			values: parseValues(entry, period, source),
 		};
 	}
 	const missing = codes.filter(code => !series[code]);
@@ -85,7 +118,7 @@ export const fetchSeries = async (
 
 export const statMonth = (year: number, month: number, earliest: string) => {
 	if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-		throw new RangeError(`Invalid month: ${year}-${month}`);
+		throw new RangeError(`Invalid month: ${year}-${String(month).padStart(2, '0')}`);
 	}
 	const paddedMonth = String(month).padStart(2, '0');
 	const formatted = `${year}-${paddedMonth}`;

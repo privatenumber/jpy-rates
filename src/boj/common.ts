@@ -10,7 +10,7 @@ export const isUnannounced = (response: Response, month: string): boolean => (
 
 export const monthParts = (year: number, month: number) => {
 	if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-		throw new RangeError(`Invalid month: ${year}-${month}`);
+		throw new RangeError(`Invalid month: ${year}-${String(month).padStart(2, '0')}`);
 	}
 	if (year < 2016 || year > 2099) {
 		throw new RangeError('Month must be between 2016-01 and 2099-12');

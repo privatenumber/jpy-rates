@@ -27,6 +27,7 @@ if (!match) { fail('Expected a date in YYYY-MM-DD or a month in YYYY-MM format')
 const year = Number(match![1]);
 const month = Number(match![2]);
 const isDate = match![3] !== undefined;
+if (isDate && argv.flags.daily) { fail('--daily needs a month (YYYY-MM), not a date'); }
 if (isDate) {
 	// Rejects impossible dates such as 2026-02-30
 	try {

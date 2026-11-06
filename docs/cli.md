@@ -199,4 +199,4 @@ A value the BOJ does not have, such as the central rate before 1992-08, prints a
 jpy-rates boj effective <YYYY-MM> [--json]
 ```
 
-The yen's nominal and real effective exchange rate indices (実効為替レート), from 1970-01. A higher index means a stronger yen. The real index is published about a month after the nominal index, so it is `null` for the latest month.
+The yen's nominal and real effective exchange rate indices (実効為替レート), from 1970-01. A higher index means a stronger yen. An index the BOJ has not published yet prints as `—` (`null` in JSON); a month with neither index exits with an error.

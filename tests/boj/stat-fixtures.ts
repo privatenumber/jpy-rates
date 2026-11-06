@@ -50,6 +50,18 @@ export const statFixture = (url: string): Response | undefined => {
 		// The current month is listed without values
 		case 'FM08 FXERM 202611': { return ok(codes, [202_611], () => null); }
 		case 'FM09 FX180 202609': { return ok(codes, [202_609], code => (code.endsWith('1') ? 70 : 65), 'CY 2020=100'); }
+		// Malformed responses
+		case 'FM09 FX180 202601': { return ok(codes, [202_601], () => '70.1' as unknown as number); }
+		case 'FM09 FX180 202602': {
+			return json({
+				STATUS: 200,
+				MESSAGEID: 'M181000I',
+				RESULTSET: codes.map(code => ({ SERIES_CODE: code })),
+			});
+		}
+		case 'FM09 FX180 202603': { return ok(codes, [202_602], () => 70); }
+		// Dates out of order
+		case 'FM08 FXERD 202609': { return ok(codes, [20_260_902, 20_260_901], () => 100); }
 		case 'FM09 FX180 197001': {
 			return json({
 				STATUS: 400,

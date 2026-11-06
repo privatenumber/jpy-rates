@@ -14,7 +14,7 @@ Observed on 2026-11-07 against `https://www.stat-search.boj.or.jp/api/v1/getData
 - Success is `STATUS: 200`, `MESSAGEID: M181000I`.
 - A period with no data, such as a future month, is still HTTP 200, with `MESSAGEID: M181030I` and every value `null`.
 - A daily series lists every calendar day of the month. Weekends, holidays, and unpublished days have `null` values. The package keeps only days with at least one value.
-- The current month's monthly series is listed with `null` until the month ends. The real effective index lags the nominal one by about a month.
+- The current month's monthly series is listed with `null` until the month ends. On 2026-11-07 both effective indices ended at 2026-09; the package does not assume either is published first.
 - Errors are HTTP 400 with a gzip body and `Content-Encoding: gzip`. fetch decodes it to JSON such as `{"STATUS":400,"MESSAGEID":"M181013E","MESSAGE":"Nonexistent series code：1"}`; raw `curl` output looks binary.
 
 ## Series used
@@ -34,8 +34,12 @@ Not used: volumes (FXERD06/07), the yen index (FXERD39), EUR/USD (FXERD31-36), a
 
 ## Consistency checks
 
-A sweep on 2026-11-07 over 1998-01, 1999-01, 2000-02, 2008-10, 2011-03, 2016-06, 2020-03, and 2024-12 found:
+A full sweep on 2026-11-07 fetched all daily series for 1998-01 to 2026-11 (one request per year), all monthly series for 1973-01 to 2026-12, and both effective indices for 1970-01 to 2026-12 in one request each. Multi-month ranges were used only for this sweep, to keep the request count low; the package requests one month at a time. Results:
 
-- From 1999, the mean of the daily central rates equals FXERM09 to two decimals in every sampled month.
-- FXERM06 (month-end 17:00) equals the last trading day's FXERD04 in every sampled month.
-- 1998 months have only the 17:00 daily rate; 1973 to 1992-07 months have only the 17:00 monthly series.
+- 7,067 trading days, none on a weekend, all between 50 and 400 JPY, none with high below low.
+- 1998 has only the 17:00 daily rate (247 days); every day from 1999 has all five daily series.
+- For every month from 1999-01 to 2026-10, FXERM07 and FXERM09 equal the mean of the daily 17:00 and central rates within 0.005, and FXERM06, FXERM08, FXERM03, and FXERM05 equal the last day's 17:00 and central rates and the daily maximum and minimum exactly.
+- The 1998 monthly central rate exists (from 1992-08) without a daily central rate.
+- Source quirk: on 16 days, the 9:00 or 17:00 rate is 0.01 above the day's published high (for example 2002-08-14: 9:00 118.37, high 118.36). The package reports values as published and does not assume the spot rates lie within the high and low.
+- The effective indices have 684 months, CY 2020=100 for both, with no gaps before 2026-10.
+- `fetchEffectiveRates` and the market functions matched the bulk data in every sampled month.

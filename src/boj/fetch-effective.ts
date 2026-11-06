@@ -7,8 +7,7 @@ const realCode = 'FX180110002';
 
 /**
  * The yen's nominal and real effective exchange rate indices for a month.
- * Returns null when the BOJ has not published the month yet; the real index
- * is published about a month after the month ends.
+ * Returns null when the BOJ has published neither index for the month yet.
  */
 export const fetchEffectiveRates = async (
 	year: number,

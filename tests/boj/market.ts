@@ -103,9 +103,21 @@ if (process.env.JPY_RATES_LIVE) {
 			await expect(fetchEffectiveRates(1970, 1)).rejects.toThrow('Nonexistent series code');
 		});
 
+		test('rejects malformed values instead of returning them', async () => {
+			await expect(fetchEffectiveRates(2026, 1)).rejects.toThrow('value "70.1"');
+			await expect(fetchEffectiveRates(2026, 2)).rejects.toThrow('missing or mismatched arrays');
+			await expect(fetchEffectiveRates(2026, 3)).rejects.toThrow('date 202602 outside 202603');
+		});
+
+		test('daily rates are in date order', async () => {
+			const result = await fetchDailyMarketRates(2026, 9);
+			expect(result!.days.map(day => day.date)).toStrictEqual(['2026-09-01', '2026-09-02']);
+		});
+
 		test('rejects months outside each series', async () => {
 			await expect(fetchDailyMarketRates(1997, 12)).rejects.toThrow('Month must be between 1998-01 and 2099-12');
 			await expect(fetchMonthlyMarketRates(2026, 13)).rejects.toThrow('Invalid month: 2026-13');
+			await expect(fetchMonthlyMarketRates(2026, 0)).rejects.toThrow('Invalid month: 2026-00');
 		});
 
 		const run = async (...args: string[]) => {
@@ -131,6 +143,13 @@ if (process.env.JPY_RATES_LIVE) {
 			await expect(run('market', '2026-10-03')).rejects.toMatchObject({
 				exitCode: 1,
 				stderr: 'No Tokyo market rates for 2026-10-03 (not a trading day, or not published yet)',
+			});
+		});
+
+		test('market CLI: --daily with a date exits with a clear error', async () => {
+			await expect(run('market', '2026-10-01', '--daily')).rejects.toMatchObject({
+				exitCode: 1,
+				stderr: '--daily needs a month (YYYY-MM), not a date',
 			});
 		});
 

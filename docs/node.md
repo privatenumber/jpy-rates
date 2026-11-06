@@ -444,5 +444,5 @@ const effective = await fetchEffectiveRates(2026, 9)
 | `fetchEffectiveRates(year, month)` | 1970-01 | Nominal (FX180110001) and real (FX180110002) effective exchange rate indices |
 
 - A value the BOJ does not have is `null`, such as the central rate before 1992-08, or the 9:00 rate in 1998.
-- Each function returns `null` when the month has no published values yet. The monthly summary appears after the month ends. The real effective index appears about a month after the nominal index.
+- Each function returns `null` when the month has no published values yet. The monthly summary appears after the month ends. If only one effective index is published for a month, the other is `null`.
 - An API error throws with the BOJ's message, for example `BOJ API error (HTTP 400): Nonexistent series code：1`.

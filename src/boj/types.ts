@@ -144,9 +144,6 @@ export type EffectiveRatesResult = {
 	/** Nominal effective exchange rate index (FX180110001) */
 	nominal: number | null;
 
-	/**
-	 * Real effective exchange rate index (FX180110002).
-	 * Published about a month later than the nominal index.
-	 */
+	/** Real effective exchange rate index (FX180110002) */
 	real: number | null;
 };
