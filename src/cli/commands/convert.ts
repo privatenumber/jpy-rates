@@ -1,6 +1,7 @@
 import { cli } from 'cleye';
 import { convertCurrency } from '../../api/convert-currency.ts';
-import type { ConversionRateType } from '../../api/types.ts';
+import { conversionPurposes } from '../../api/conversion-purpose.ts';
+import type { ConversionPurpose, ConversionRateType } from '../../api/types.ts';
 import { jsonFlag } from '../flags.ts';
 import { formatConversion } from '../format.ts';
 import {
@@ -60,6 +61,11 @@ const argv = cli({
 			alias: 'r',
 			description: 'Rate type: tts, ttb, or ttm',
 		},
+		purpose: {
+			type: String,
+			alias: 'p',
+			description: `Pick the rate type tax rules specify: ${conversionPurposes.join(', ')}`,
+		},
 		json: jsonFlag,
 	},
 });
@@ -71,6 +77,7 @@ const result = requireResult(
 		to: requireFlag(argv.flags.to, 'to'),
 		date: requireFlag(argv.flags.date, 'date'),
 		rate: parseConversionRate(argv.flags.rate),
+		purpose: argv.flags.purpose as ConversionPurpose | undefined,
 	})),
 	'No rates found for this date (non-business day or out of range)',
 );

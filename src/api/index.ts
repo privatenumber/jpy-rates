@@ -1,7 +1,7 @@
 export type {
 	FetchOptions,
 	RateValues, Rate, RatesResult,
-	ConversionRateType, ConvertCurrencyOptions, ConvertCurrencyResult,
+	ConversionRateType, ConversionPurpose, ConvertCurrencyOptions, ConvertCurrencyResult,
 	ConvertWithRatesOptions, ConvertWithRatesResult,
 	DailyRate, CashRate, DailyResult,
 	MonthlyRate, LocalMarketRate, MonthlyResult,
@@ -13,6 +13,7 @@ export type {
 export type { ParseArchiveWorkbookOptions } from './archive.ts';
 
 export { convertCurrency, convertWithRates } from './convert-currency.ts';
+export { conversionPurposes, rateTypeForPurpose } from './conversion-purpose.ts';
 export { fetchRates } from './fetch-rates.ts';
 export { fetchDaily } from './fetch-daily.ts';
 export { fetchMonthly } from './fetch-monthly.ts';

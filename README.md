@@ -48,7 +48,7 @@ Japanese banks publish three rates per currency pair:
 | **TTB** | Bank buys foreign currency from you | You're selling foreign currency for JPY |
 | **TTM** | Midpoint: (TTS + TTB) / 2 | General reference midpoint; see [NTA context](#tax-related-context) for tax-related source links |
 
-For tax-related workflows, verify the current official NTA sources and your own facts. See [Tax-Related Context](#tax-related-context) for source links and caveats.
+Tax rules specify different rate types for different purposes, such as TTB for stock sale proceeds. See [Which rate type a rule specifies](#which-rate-type-a-rule-specifies).
 
 ## CLI
 
@@ -56,6 +56,7 @@ For tax-related workflows, verify the current official NTA sources and your own 
 murc-rates rates 2025-01-06               # daily rates for a date
 murc-rates rates 2025-01-06 -c USD        # filter to one currency
 murc-rates convert -a 100 -f USD -t JPY -d 2025-01-06
+murc-rates convert -a 100 -f USD -t JPY -d 2025-01-06 -p stock-sale   # TTB
 murc-rates daily                         # today's rates + cash rates
 murc-rates monthly 2025 1                # month-end + monthly average
 murc-rates yearly 2024                   # year-end + yearly average
@@ -91,6 +92,7 @@ Converts between JPY and one foreign currency using daily TTS/TTB/TTM rates. Def
 - `to` — currency code, e.g. `'JPY'` or `'USD'`
 - `date` — `string` (`'YYYY-MM-DD'`) or `Date`
 - `rate` — `'tts' | 'ttb' | 'ttm'` (optional, defaults to `'ttm'`)
+- `purpose` — selects the rate type a tax rule specifies, instead of `rate` (optional; see [Which rate type a rule specifies](#which-rate-type-a-rule-specifies))
 - `signal` — `AbortSignal` (optional)
 
 The result includes both the requested date and the source business date actually used. Converted amounts are not rounded.
@@ -340,15 +342,43 @@ const result = await parseArchiveWorkbook(xlsBuffer, {
 
 ## Tax-Related Context
 
-This package provides source-linked exchange-rate data. It does not determine which rate applies to your filing and is not tax, accounting, or legal advice.
+This package provides source-linked exchange-rate data. It is not tax, accounting, or legal advice, and it does not decide which rate applies to your filing. The summary below links to the NTA rules so you can check them.
 
-[所得税基本通達 57の3-2](https://www.nta.go.jp/law/tsutatsu/kihon/shotoku/11a/01.htm) discusses yen conversion of foreign-currency amounts, including conversion using a principal transaction bank's TTM and stated circumstances where continuous use of TTB/TTS may be permitted. The NTA also publishes [国外財産調書 FAQ](https://www.nta.go.jp/publication/pamph/hotei/kokugai_zaisan/pdf/kokugai_faq_h2_01.pdf) material that discusses foreign-asset reporting and valuation.
+### MURC publishes MUFG Bank's rates
 
-Source links commonly relevant to tax-related rate lookup:
+The rates are MUFG Bank's own published customer rates, and MURC states that it shows the bank's final quote of each day. The NTA rules generally ask for the rate of *your* main bank (主たる取引金融機関), but they also accept a reasonable rate that you use consistently ([所得税基本通達57の3-2 注1](https://www.nta.go.jp/law/tsutatsu/kihon/shotoku/11a/01.htm)). That clause is why MUFG's rates are commonly used. Some rules instead name a specific institution, such as the bank that holds a deposit or the broker that pays you. In those cases, use that institution's rate or statement.
 
-- [NTA basic directive 57の3-2](https://www.nta.go.jp/law/tsutatsu/kihon/shotoku/11a/01.htm)
-- [NTA stock option example](https://www.keisan.nta.go.jp/r7yokuaru/ocat2/ocat21/cid477.html)
-- [NTA foreign-asset FAQ PDF](https://www.nta.go.jp/publication/pamph/hotei/kokugai_zaisan/pdf/kokugai_faq_h2_01.pdf)
+How much the choice of bank matters depends on the rate type. Major banks' TTMs usually agree within a few sen. TTS and TTB spreads differ much more: about ±1 yen per USD at major banks, but much less at some online banks.
+
+### Which rate type a rule specifies
+
+| Purpose | `purpose` option | Rate | Whose rate | Rule |
+| --- | --- | --- | --- | --- |
+| General income, salary, stock option exercise | `general` | TTM on the transaction date | Your main bank, or a reasonable rate used consistently | [所基通57の3-2](https://www.nta.go.jp/law/tsutatsu/kihon/shotoku/11a/01.htm) |
+| Foreign stock sale proceeds | `stock-sale` | TTB on the trade date | The paying broker, if it publishes a rate | [措通37の10・37の11共-6](https://www.nta.go.jp/law/tsutatsu/kobetsu/shotoku/sochiho/020624/sanrin/1273/37_10-11/01.htm) |
+| Foreign stock acquisition cost | `stock-acquisition` | TTS on the trade date | Same as above | Same |
+| Foreign dividends paid through a domestic paying agent | `dividend` | TTB on the payment start date | The paying agent, if it publishes a rate | [措通9の2-2](https://www.nta.go.jp/law/tsutatsu/kobetsu/shotoku/sochiho/880331/gensen/58/09/02.htm) |
+| Inherited or gifted assets | `inheritance-asset` | Final TTB on the valuation date | Your bank; for a deposit, the bank holding it | [財産評価基本通達4-3](https://www.nta.go.jp/law/tsutatsu/kihon/sisan/hyoka_new/01/01.htm) |
+| Inherited debts | `inheritance-debt` | Final TTS on the valuation date | Same as above | Same |
+| 国外財産調書 | `foreign-asset-report` | TTB on December 31 | Your bank; for a deposit, the bank holding it | [国外送金等調書法通達5-14](https://www.nta.go.jp/law/tsutatsu/kobetsu/hotei/2207xx/pdf/01.pdf) |
+
+`purpose` only selects the rate type; you still pass the date the rule specifies. When the date has no published rate, every rule above uses the nearest earlier date, which is what `fetchRates` returns.
+
+```ts
+const result = await convertCurrency({
+    amount: 1000,
+    from: 'USD',
+    to: 'JPY',
+    date: '2025-01-06',
+    purpose: 'stock-sale' // uses TTB
+})
+```
+
+If you sold through a Japanese broker, its annual trade report (年間取引報告書) already uses the broker's own rates.
+
+### Data corrections
+
+MURC has corrected historical values before: its archive page announced corrections to some values since 1990, reposted on 2024-04-19 with an errata PDF. Fetch rates when you need them instead of relying on old copies, and check important values against the linked source page.
 
 Always verify calculations against the official source pages and consult a qualified professional for your specific situation.
 

@@ -310,4 +310,16 @@ describe('cli', () => {
 		});
 		expect(result.stdout).not.toContain('\u001B[');
 	});
+
+	test('convert --purpose selects the rate type', async () => {
+		const result = JSON.parse(await cli([
+			'convert', '-a', '100', '-f', 'USD', '-t', 'JPY', '-d', '2025-01-06', '-p', 'stock-sale', '--json',
+		]));
+		expect(result.rate).toBe('ttb');
+		expect(result.purpose).toBe('stock-sale');
+
+		const output = await cli(['convert', '-a', '100', '-f', 'USD', '-t', 'JPY', '-d', '2025-01-06', '-p', 'dividend']);
+		expect(output).toContain('TTB');
+		expect(output).toContain('purpose: dividend');
+	});
 });

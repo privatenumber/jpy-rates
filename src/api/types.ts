@@ -26,11 +26,25 @@ export type RatesResult = {
 // convertCurrency
 export type ConversionRateType = 'tts' | 'ttb' | 'ttm';
 
+export type ConversionPurpose =
+	| 'general'
+	| 'stock-sale'
+	| 'stock-acquisition'
+	| 'dividend'
+	| 'inheritance-asset'
+	| 'inheritance-debt'
+	| 'foreign-asset-report';
+
 export type ConvertWithRatesOptions = {
 	amount: number;
 	from: string;
 	to: string;
+
+	/** Rate type to use. Defaults to TTM. Cannot be combined with `purpose`. */
 	rate?: ConversionRateType;
+
+	/** Selects the rate type that tax rules specify for this purpose. */
+	purpose?: ConversionPurpose;
 };
 
 export type ConvertCurrencyOptions = ConvertWithRatesOptions & FetchOptions & {
@@ -44,6 +58,7 @@ export type ConvertWithRatesResult = {
 	from: string;
 	to: string;
 	rate: ConversionRateType;
+	purpose: ConversionPurpose | null;
 	rateValue: number;
 	unit: number;
 	convertedAmount: number;

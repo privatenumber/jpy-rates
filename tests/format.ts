@@ -92,6 +92,7 @@ describe('formatters', () => {
 			from: 'USD',
 			to: 'JPY',
 			rate: 'ttm',
+			purpose: null,
 			rateValue: 104,
 			unit: 1,
 			convertedAmount: 10_400,

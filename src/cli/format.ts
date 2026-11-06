@@ -123,7 +123,7 @@ export const formatConversion = (result: ConvertCurrencyResult, style: Ansis): s
 		style.bold(
 			`${numberFormat.format(result.amount)} ${result.from} = ${numberFormat.format(result.convertedAmount)} ${result.to}`,
 		),
-		`Rate: ${result.rate.toUpperCase()} ${fmtRate(style, result.rateValue)} JPY per ${result.unit} ${foreignCurrency}`,
+		`Rate: ${result.rate.toUpperCase()} ${fmtRate(style, result.rateValue)} JPY per ${result.unit} ${foreignCurrency}${result.purpose ? ` (purpose: ${result.purpose})` : ''}`,
 		`Date: ${dateLine}`,
 		`Source: ${result.source}`,
 	].join('\n');

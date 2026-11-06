@@ -1,5 +1,6 @@
 import { fetchRates } from './fetch-rates.ts';
 import { formatDate, parseDate } from './utils.ts';
+import { rateTypeForPurpose } from './conversion-purpose.ts';
 import type {
 	ConvertCurrencyOptions, ConvertCurrencyResult, ConversionRateType,
 	ConvertWithRatesOptions, ConvertWithRatesResult, RatesResult,
@@ -14,7 +15,11 @@ const normalizeOptions = (options: ConvertWithRatesOptions) => {
 
 	const from = options.from.trim().toUpperCase();
 	const to = options.to.trim().toUpperCase();
-	const rate = options.rate ?? 'ttm';
+	if (options.rate !== undefined && options.purpose !== undefined) {
+		throw new TypeError('Pass either rate or purpose, not both');
+	}
+	const purpose = options.purpose ?? null;
+	const rate = purpose ? rateTypeForPurpose(purpose) : (options.rate ?? 'ttm');
 	if (!supportedRateTypes.has(rate)) {
 		throw new Error(`Invalid rate: ${rate} (expected tts, ttb, or ttm)`);
 	}
@@ -29,6 +34,7 @@ const normalizeOptions = (options: ConvertWithRatesOptions) => {
 		from,
 		to,
 		rate,
+		purpose,
 		convertsFromJpy,
 	};
 };
@@ -36,7 +42,7 @@ const normalizeOptions = (options: ConvertWithRatesOptions) => {
 const convert = (
 	ratesResult: RatesResult,
 	{
-		amount, from, to, rate, convertsFromJpy,
+		amount, from, to, rate, purpose, convertsFromJpy,
 	}: ReturnType<typeof normalizeOptions>,
 ): ConvertWithRatesResult => {
 	const currency = convertsFromJpy ? to : from;
@@ -66,6 +72,7 @@ const convert = (
 		from,
 		to,
 		rate,
+		purpose,
 		rateValue,
 		unit: quote.unit,
 		convertedAmount,

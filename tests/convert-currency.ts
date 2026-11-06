@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'manten';
 import { convertCurrency, convertWithRates } from '../src/api/convert-currency.ts';
 import { fetchRates } from '../src/api/fetch-rates.ts';
+import type { ConversionPurpose } from '../src/api/types.ts';
 
 describe('convertCurrency', () => {
 	test('converts foreign currency to JPY with TTM by default', async () => {
@@ -148,6 +149,7 @@ describe('convertCurrency', () => {
 			from: 'KRW',
 			to: 'JPY',
 			rate: 'ttm',
+			purpose: null,
 			rateValue: 10.5,
 			unit: 100,
 			convertedAmount: 105,
@@ -174,5 +176,60 @@ describe('convertCurrency', () => {
 			from: 'JPY',
 			to: 'USD',
 		})).toThrow('invalid TTM rate');
+	});
+
+	test('purpose selects the rate type that tax rules specify', () => {
+		const rates = {
+			source: 'https://example.com',
+			date: '2025-01-06',
+			rates: {
+				USD: {
+					name: 'US Dollar',
+					nameJa: 'US Dollar',
+					unit: 1,
+					tts: 105,
+					ttb: 103,
+					ttm: 104,
+				},
+			},
+		};
+		const convert = (purpose: ConversionPurpose) => convertWithRates(rates, {
+			amount: 10,
+			from: 'USD',
+			to: 'JPY',
+			purpose,
+		});
+		expect(convert('stock-sale')).toMatchObject({
+			rate: 'ttb',
+			purpose: 'stock-sale',
+			convertedAmount: 1030,
+		});
+		expect(convert('stock-acquisition').rate).toBe('tts');
+		expect(convert('dividend').rate).toBe('ttb');
+		expect(convert('inheritance-asset').rate).toBe('ttb');
+		expect(convert('inheritance-debt').rate).toBe('tts');
+		expect(convert('foreign-asset-report').rate).toBe('ttb');
+		expect(convert('general').rate).toBe('ttm');
+	});
+
+	test('rejects combining rate and purpose, and unknown purposes', () => {
+		const rates = {
+			source: 'https://example.com',
+			date: '2025-01-06',
+			rates: {},
+		};
+		expect(() => convertWithRates(rates, {
+			amount: 1,
+			from: 'USD',
+			to: 'JPY',
+			rate: 'ttm',
+			purpose: 'stock-sale',
+		})).toThrow('either rate or purpose');
+		expect(() => convertWithRates(rates, {
+			amount: 1,
+			from: 'USD',
+			to: 'JPY',
+			purpose: 'toString' as ConversionPurpose,
+		})).toThrow('Invalid purpose');
 	});
 });

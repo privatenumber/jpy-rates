@@ -82,6 +82,18 @@ Relevant official sources:
 
 Use this package to retrieve source-linked rate data, then verify which rate and date apply outside the package.
 
+The rate type depends on the purpose. Pass `purpose` to `convertCurrency`/`convertWithRates` (CLI: `--purpose`) to select it:
+
+| `purpose` | Rate | Rule |
+| --- | --- | --- |
+| `general` | TTM | 所基通57の3-2 |
+| `stock-sale` / `stock-acquisition` | TTB / TTS on the trade date | 措通37の10・37の11共-6 |
+| `dividend` | TTB on the payment start date (domestic paying agent) | 措通9の2-2 |
+| `inheritance-asset` / `inheritance-debt` | Final TTB / TTS | 評基通4-3 |
+| `foreign-asset-report` | TTB on December 31 | 国外送金等調書法通達5-14 |
+
+MURC publishes MUFG Bank's rates. Rules that name a specific institution (the bank holding a deposit, the paying broker) require that institution's rate instead; a Japanese broker's 年間取引報告書 already applies its own rates.
+
 ## Notes
 
 - Source: MURC publishes MUFG Bank exchange quotations; each result includes source URLs for verification.
