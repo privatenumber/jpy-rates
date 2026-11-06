@@ -19,7 +19,11 @@ The site does not return 404 for a date without rates. It returns 302 to a fixed
 
 Project consequences:
 
-- `fetchShiftJisHtml` ([`src/murc/fetch-source.ts`](../../src/murc/fetch-source.ts)) treats a redirect as "no data" only when the `Location` path is `/fx/index.php` or `/fx/past_3month.php`; any other redirect throws. Without this check, a maintenance redirect looked like a holiday, and the walkback silently returned an older day's rates.
+- `fetchShiftJisHtml` ([`src/murc/fetch-source.ts`](../../src/murc/fetch-source.ts)) treats a redirect as "no data" only when the `Location` resolves to the same origin and its path is `/fx/index.php` or `/fx/past_3month.php`; any other redirect throws. The origin check was added on 2026-11-07 after a code review showed a redirect to another host's `/fx/index.php` passed as a holiday. Without this check, a maintenance redirect looked like a holiday, and the walkback silently returned an older day's rates.
+- Today's rates are not published until after about 11:00 JST. The today page says `相場は11時過ぎに変更します（Table will be updated around 11：00）`, and before the update it shows today's date with `-` in every rate cell (seen in a search-engine copy of `/fx/` for 2026-11-04). MUFG Bank sets its central rate (仲値) at about 9:55 JST. A request for today before the update gets the same redirect as a holiday. [`src/murc/business-day.ts`](../../src/murc/business-day.ts) therefore walks back from today only on a weekend; a weekday today without rates throws "not published yet". Reasons:
+  - 所得税基本通達57の3-2 注3 allows the nearest earlier rate only when the date has no rate. A weekday before 11:00 has a rate that is not published yet, so the previous day's rate is not the rule's fallback.
+  - Precedent: the Ruby client [matsubo/ttsttb](https://github.com/matsubo/ttsttb/blob/master/lib/ttsttb.rb) refuses today entirely (`raise 'Today is not supported yet.' if date == Date.today`).
+  - Rejected: a holiday calendar (a dependency or a data download, and bank holidays such as 12/31 and 1/2-1/3 are not national holidays) and a time-of-day cutoff (the 11:00 update time is approximate). A weekday holiday today gets an error that tells the user to pass the previous business day, which is safer for tax filing than a silent substitution.
 - Because out-of-range dates look like holidays, the library checks the range locally (`assertDateInRange` in [`src/utils/date.ts`](../../src/utils/date.ts)) instead of walking back 14 days and reporting "non-business day".
 
 ## Availability boundaries
@@ -57,6 +61,10 @@ The local market tables on `monthend/index.php` (`table.data-table7` after the f
 
 `parseRate` accepts only plain or comma-grouped numbers, so annotated cells become `null`. Merged cells go to `LocalMarketRate.rate`. Prefixes go to `quoteDate`; a prefix month later than the page month belongs to the previous year.
 
+## Rate invariants
+
+MURC states `公表仲値（TTM）は、TTSとTTBの中間の相場であり、（TTS＋TTB）/2で算出されます` on the today page. On 2026-11-07, 486 daily rows with all three rates, sampled on 16 dates from 1990 to 2026, all had TTM within 0.005 of (TTS + TTB) / 2. `fetchRates` ([`src/murc/fetch-rates.ts`](../../src/murc/fetch-rates.ts)) throws when a row breaks this or when the cell count is not a multiple of 6, so a shifted or added column cannot be read silently as other rates. A sweep of 74 dates (two per year, 1990 to 2026) passed both checks.
+
 ## Workbook labels
 
 **Yearly archive** (`xls/murc_<year>.xls`, sheet `data`): row 0 names each currency with its code in parentheses. Row 1 contains the note `100通貨単位につき` in the column of each currency quoted per 100 units. Observed: IDR and KRW in 2024; BEF, ITL, ESP, IDR, and KRW in 1995 and 2001. `parseArchiveWorkbook` reads `unit` from this note.
@@ -73,6 +81,8 @@ The local market tables on `monthend/index.php` (`table.data-table7` after the f
 Example row from `a_2024`, January 3: CNY 5.008 per 100 JPY, TWD 0.2196 per JPY, MYR 3.314 per 100 JPY. `fetchReference` reports this as `perJpyUnit`.
 
 **Monthly summary sheets**: 1990-2000 workbooks have an `average` sheet with monthly averages only; there are no monthly highs or lows to report. From 2001 the `月毎`/`月毎HLA` sheet labels each month, and 2001-2009 workbooks use a full-width `２月` for February (observed in 2001-2006 and 2008; 2007 and 2009 use `2月`). Without NFKC normalization, February's summary was reported as month 1.
+
+**Unquoted months are 0**: summary sheets store `0` where MURC has no quote, for example MYR (unquoted at MURC) in every month from 2010-10 and CNY in early 2010, sometimes for the average only. Before 2026-11-07 the parser emitted an all-zero MYR summary for February 2011 to 2025. `extractRowValues` ([`src/murc/archive.ts`](../../src/murc/archive.ts)) now treats non-positive values as missing, and each of high, low, and average is kept on its own (a missing one is `null`). A sweep of every archive from 1990 to 2025 afterwards found no 0 values and no partial summaries; the 134,007 daily rate fields in six sampled archives had no 0 values.
 
 **Excel serial dates**: converting with a local-time 1900 epoch shifts dates by one day in zones whose 1900 offset differs from today's, for example `Asia/Shanghai` (1900 LMT +08:05:43) and `Pacific/Apia`. The project converts in UTC; see the `excelDateToIso` test in [`tests/murc/utils.ts`](../../tests/murc/utils.ts).
 

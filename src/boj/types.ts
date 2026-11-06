@@ -31,8 +31,8 @@ export type BasicRatesResult = {
 	/**
 	 * JPY per `unit` currency units, derived by jpy-rates from each USD market
 	 * quote and the basic rate. Currencies without a market quote are omitted.
-	 * BOJ specifies no rounding; multiplication is
-	 * normalized to 12 significant digits to remove floating-point noise.
+	 * BOJ specifies no rounding; the product is exact to the decimals of its
+	 * factors, without floating-point noise.
 	 * BOJ describes these as
 	 * "市場実勢を基準外国為替相場をもって裁定した相場".
 	 * https://www.boj.or.jp/about/services/tame/tame_rate/kijun/kiju2611.htm

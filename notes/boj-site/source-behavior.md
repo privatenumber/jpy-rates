@@ -30,7 +30,7 @@ Both indexes ([基準・裁定](https://www.boj.or.jp/about/services/tame/tame_r
 
 ## Derived JPY rates
 
-Each announcement defines other currencies as `当該通貨のアメリカ合衆国通貨に対する市場実勢を基準外国為替相場をもって裁定した相場` (for example [kiju2611.htm](https://www.boj.or.jp/about/services/tame/tame_rate/kijun/kiju2611.htm)). `arbitrated` computes `usd × basic`, normalized to 12 significant digits to remove floating-point noise; the BOJ states no rounding. Examples for 2026-11: KRW 11.4816 JPY per 100, VES 0.19032 JPY per 1.
+Each announcement defines other currencies as `当該通貨のアメリカ合衆国通貨に対する市場実勢を基準外国為替相場をもって裁定した相場` (for example [kiju2611.htm](https://www.boj.or.jp/about/services/tame/tame_rate/kijun/kiju2611.htm)). `arbitrated` computes `usd × basic` with `multiplyDecimals`, which removes floating-point noise without rounding (see [numeric-precision.md](../jpy-rates/numeric-precision.md)); the BOJ states no rounding. Examples for 2026-11: KRW 11.4816 JPY per 100, VES 0.19032 JPY per 1.
 
 ## Currency codes
 

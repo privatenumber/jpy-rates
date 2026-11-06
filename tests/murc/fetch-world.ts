@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'manten';
-import { fetchWorld } from '../../src/murc/fetch-world.ts';
+import { fetchWorld, parseCsv } from '../../src/murc/fetch-world.ts';
 
 describe('fetchWorld', () => {
 	test('all 5 regions present', async () => {
@@ -126,4 +126,10 @@ describe('fetchWorld', () => {
 			expect(result.asia).toHaveLength(3);
 		});
 	}
+
+	test('rejects a regional response that is not the rates CSV', () => {
+		// A maintenance page served with HTTP 200 used to parse as an empty region
+		expect(() => parseCsv('<html>メンテナンス中</html>', 'asia')).toThrow('Unexpected world rates CSV (asia.csv)');
+		expect(() => parseCsv('countory,japanese,currencyunit,codeaddress,quotations,rateofexchange,remarks\n', 'asia')).toThrow('1 records');
+	});
 });

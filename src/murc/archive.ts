@@ -148,7 +148,8 @@ const extractRowValues = (
 		}
 		const ttmColumn = ttsColumn + 2;
 		const value = row[ttmColumn];
-		if (typeof value === 'number') {
+		// Summary sheets store 0 for months without a quote, such as MYR from 2010
+		if (typeof value === 'number' && value > 0) {
 			values.set(currency.code, value);
 		}
 	}
@@ -173,7 +174,6 @@ const parseMonthlySummarySheet = (
 	let currentMonth = 0;
 	const monthHighs = new Map<string, number>();
 	const monthLows = new Map<string, number>();
-	const monthAverages = new Map<string, number>();
 
 	for (const row of rows) {
 		const cell0 = row[0];
@@ -187,14 +187,12 @@ const parseMonthlySummarySheet = (
 				currentMonth = Number(monthMatch[1]);
 				monthHighs.clear();
 				monthLows.clear();
-				monthAverages.clear();
 			}
 
 			if (cell0 === '年間') {
 				currentMonth = 0; // Annual section
 				monthHighs.clear();
 				monthLows.clear();
-				monthAverages.clear();
 			}
 		}
 
@@ -222,26 +220,23 @@ const parseMonthlySummarySheet = (
 				monthLows.set(code, value);
 			}
 		} else {
-			for (const [code, value] of rowValues) {
-				monthAverages.set(code, value);
-
-				// When we have the average, we can emit the summary
-				const high = monthHighs.get(code);
-				const low = monthLows.get(code);
-
-				if (currentMonth > 0 && high !== undefined && low !== undefined) {
+			// The average row closes each group. Some currencies publish only some of the
+			// three values, such as an average without high and low (MYR from 2011), so each
+			// value is kept on its own and a missing one is null.
+			for (const { code } of currencies) {
+				const summary = {
+					high: monthHighs.get(code) ?? null,
+					low: monthLows.get(code) ?? null,
+					average: rowValues.get(code) ?? null,
+				};
+				if (summary.high === null && summary.low === null && summary.average === null) { continue; }
+				if (currentMonth > 0) {
 					monthlyMap.get(code)!.push({
 						month: currentMonth,
-						high,
-						low,
-						average: value,
+						...summary,
 					});
-				} else if (currentMonth === 0 && high !== undefined && low !== undefined) {
-					annualMap.set(code, {
-						high,
-						low,
-						average: value,
-					});
+				} else {
+					annualMap.set(code, summary);
 				}
 			}
 		}

@@ -135,4 +135,15 @@ describe('fetchRates', () => {
 		controller.abort(reason);
 		await expect(fetchRates('2025-01-06', { signal: controller.signal })).rejects.toBe(reason);
 	});
+
+	test('rejects malformed rate tables instead of misreading columns', async () => {
+		if (process.env.JPY_RATES_LIVE) { return; }
+		await expect(fetchRates('2025-03-03')).rejects.toThrow('7 cells are not rows of 6');
+		await expect(fetchRates('2025-03-04')).rejects.toThrow('TTM 103 is not the midpoint of TTS 105 and TTB 103');
+	});
+
+	test('a no-data redirect to another origin is an error, not a holiday', async () => {
+		if (process.env.JPY_RATES_LIVE) { return; }
+		await expect(fetchRates('2025-03-05')).rejects.toThrow('Unexpected redirect');
+	});
 });

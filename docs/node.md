@@ -89,7 +89,7 @@ Converts between JPY and one foreign currency using daily TTS/TTB/TTM rates. Def
 - `purpose`: selects the rate type a tax rule specifies, instead of `rate` (optional): `'general' | 'stock-sale' | 'stock-acquisition' | 'dividend' | 'inheritance-asset' | 'inheritance-debt' | 'foreign-asset-report'`. Throws if combined with `rate`
 - `signal`: `AbortSignal` (optional)
 
-The result includes both the requested date and the source business date actually used. Converted amounts are not rounded to yen or cents; they are normalized to 12 significant digits to remove floating-point noise (so `100 × 157.73` is `15773`, not `15772.999999999998`).
+The result includes both the requested date and the source business date actually used. Converted amounts are not rounded to yen or cents. Conversions to JPY are rounded only to the decimal places of the exact product, which removes floating-point noise (so `100 × 157.73` is `15773`, not `15772.999999999998`) without dropping digits of large amounts.
 
 ```ts
 const result = await convertCurrency({

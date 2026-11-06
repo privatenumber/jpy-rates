@@ -141,3 +141,31 @@ describe('utils', () => {
 		expect(() => parseDate(new Date('garbage'))).toThrow('Invalid');
 	});
 });
+
+describe('findRatesOnOrBefore', async () => {
+	const { findRatesOnOrBefore } = await import('../../src/murc/business-day.ts');
+	// Returns rates only for the listed dates, like the MURC redirect for every other day
+	const ratesOn = (...dates: string[]) => async (date: Date) => (
+		dates.includes(formatDate(date)) ? formatDate(date) : null
+	);
+
+	test('walks back from past dates without rates', async () => {
+		const today = parseDate('2025-01-10');
+		expect(await findRatesOnOrBefore(parseDate('2025-01-05'), ratesOn('2025-01-03'), today)).toBe('2025-01-03');
+	});
+
+	test('walks back from today when today is a weekend', async () => {
+		const today = parseDate('2025-01-05');
+		expect(await findRatesOnOrBefore(today, ratesOn('2025-01-03'), today)).toBe('2025-01-03');
+	});
+
+	test('returns today\'s rates once published', async () => {
+		const today = parseDate('2025-01-06');
+		expect(await findRatesOnOrBefore(today, ratesOn('2025-01-06', '2025-01-03'), today)).toBe('2025-01-06');
+	});
+
+	test('a weekday today without rates is an error, not the previous day', async () => {
+		const today = parseDate('2025-01-06');
+		await expect(findRatesOnOrBefore(today, ratesOn('2025-01-03'), today)).rejects.toThrow('MURC has not published rates for today (2025-01-06) yet');
+	});
+});

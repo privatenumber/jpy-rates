@@ -130,7 +130,7 @@ const worldHtml = () => {
 
 const worldCsv = (region: string) => {
 	const rows = [
-		'Country,CountryJa,Currency,Code,Quotation,MarketLevel,Remarks',
+		'countory,japanese,currencyunit,codeaddress,quotations,rateofexchange,remarks',
 		`Fictional ${region},&#12471;&#12531;&#12475;,Synthetic Currency,SYN,per USD,1.2345,uses &amp; entity`,
 		`No Rate ${region},Synthetic no-rate,,,,"",No published local level`,
 		`"Quoted ""Name"" ${region}",Synthetic quoted,Synthetic Currency,QTD,per USD,2.5,"multi-line
@@ -221,9 +221,19 @@ const archiveDataRows = (year: number, currencies: ArchiveCurrency[]) => {
 	return rows;
 };
 
+type SummaryKind = 'high' | 'low' | 'average';
+
+// Replaces a currency's summary value: null leaves the cell empty
+type SummaryOverride = (
+	month: number,
+	kind: SummaryKind,
+	code: string,
+) => number | null | undefined;
+
 const monthlySummarySheetRows = (
 	currencies: ArchiveCurrency[],
 	oldLabels = false,
+	override?: SummaryOverride,
 ) => {
 	const header: (string | number | null)[] = [null, null];
 	for (const [index] of currencies.entries()) {
@@ -250,24 +260,26 @@ const monthlySummarySheetRows = (
 	];
 
 	const addSummaryRow = (
-		month: number | null,
-		label: string,
+		month: number,
+		kind: SummaryKind,
 		offset: number,
 	) => {
-		// 2001-2009 workbooks label February with full-width digits
-		const monthLabel = oldLabels && month === 2 ? '\uFF12\u6708' : (month === null ? null : monthName(month));
-		const row: (string | number | null)[] = [monthLabel, label];
+		// Only the first row of each month carries the month label.
+		// 2001-2009 workbooks label February with full-width digits.
+		const monthLabel = kind === 'high' ? (oldLabels && month === 2 ? '\uFF12\u6708' : monthName(month)) : null;
+		const row: (string | number | null)[] = [monthLabel, labels[kind]];
 		for (const [index, currency] of currencies.entries()) {
-			const value = currency.base + offset + index / 10 + (month ?? 0) / 100;
-			row[2 + index * 3 + 2] = value;
+			const value = override?.(month, kind, currency.code);
+			if (value === null) { continue; }
+			row[2 + index * 3 + 2] = value ?? currency.base + offset + index / 10 + (kind === 'high' ? month / 100 : 0);
 		}
 		rows.push(row);
 	};
 
 	for (let month = 1; month <= 12; month += 1) {
-		addSummaryRow(month, labels.high, 20);
-		addSummaryRow(null, labels.low, 10);
-		addSummaryRow(null, labels.average, 15);
+		addSummaryRow(month, 'high', 20);
+		addSummaryRow(month, 'low', 10);
+		addSummaryRow(month, 'average', 15);
 	}
 
 	const addAnnualRow = (label: string, offset: number, firstCell: string | null = null) => {
@@ -340,6 +352,15 @@ const archiveWorkbook = (year: number) => {
 		appendSheet(workbook, 'average', averageSheetRows(year, currencies));
 	} else if (year < 2010) {
 		appendSheet(workbook, monthlyHlaSheetName, monthlySummarySheetRows(currencies, true));
+	} else if (year === 2015) {
+		// Like MYR from 2011: TRY publishes only averages in January to June, and 0
+		// (no quote) for every value from July
+		const tryQuirks: SummaryOverride = (month, kind, code) => {
+			if (code !== 'TRY') { return undefined; }
+			if (month > 6) { return 0; }
+			return kind === 'average' ? undefined : null;
+		};
+		appendSheet(workbook, monthlySheetName, monthlySummarySheetRows(currencies, false, tryQuirks));
 	} else {
 		appendSheet(workbook, monthlySheetName, monthlySummarySheetRows(currencies));
 	}
@@ -522,6 +543,17 @@ const referenceWorkbook = (group: 'a' | 'b') => {
 export const murcFixture = (url: string): Response | undefined => {
 	if (url.includes('past_3month_result.php?y=2025&m=1&d=6')) {
 		return new Response(table('data-table5', searchRows()));
+	}
+	// Malformed pages: a row with an extra cell, a TTM that is not the midpoint,
+	// and a no-data path on another origin
+	if (url.includes('past_3month_result.php?y=2025&m=3&d=3')) {
+		return new Response(table('data-table5', [['US Dollar', 'Synthetic USD', 'USD', '1', '105.00', '103.00', '104.00']]));
+	}
+	if (url.includes('past_3month_result.php?y=2025&m=3&d=4')) {
+		return new Response(table('data-table5', [['US Dollar', 'Synthetic USD', 'USD', '105.00', '103.00', '103.00']]));
+	}
+	if (url.includes('past_3month_result.php?y=2025&m=3&d=5')) {
+		return noDataRedirect('https://other.example/fx/index.php');
 	}
 	if (url.includes('past_3month_result.php?y=2025&m=1&d=7')) {
 		return new Response(null, { status: 500 });

@@ -17,7 +17,9 @@ export const fetchShiftJisHtml = async (
 	const response = await fetchSource(url, options);
 	if (response.status === 301 || response.status === 302) {
 		const location = response.headers.get('location');
-		if (location && noDataRedirectPaths.has(new URL(location, url).pathname)) {
+		const destination = location ? new URL(location, url) : undefined;
+		const isSameOrigin = destination?.origin === new URL(url).origin;
+		if (isSameOrigin && noDataRedirectPaths.has(destination!.pathname)) {
 			return null;
 		}
 		throw new Error(`Unexpected redirect (HTTP ${response.status}) to ${location ?? 'unknown location'}: ${url}`);

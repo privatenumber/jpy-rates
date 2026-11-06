@@ -152,4 +152,19 @@ describe('archive', () => {
 		expect(usd.annual.low).toBeGreaterThan(0);
 		expect(usd.annual.average).toBeGreaterThan(0);
 	});
+
+	test('keeps partial summaries and drops 0 (no quote) values', async () => {
+		if (process.env.JPY_RATES_LIVE) { return; }
+		const result = await parseArchiveYear(2015);
+		const { monthly, annual } = result.currencies.TRY!;
+		// January to June publish only an average; July to December are all 0
+		expect(monthly.map(entry => entry.month)).toStrictEqual([1, 2, 3, 4, 5, 6]);
+		expect(monthly[0]).toStrictEqual({
+			month: 1,
+			high: null,
+			low: null,
+			average: 20.2,
+		});
+		expect(annual.average).toBe(23.2);
+	});
 });

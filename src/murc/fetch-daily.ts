@@ -1,6 +1,6 @@
 import { parseHTML } from 'linkedom';
 import {
-	parseDate, formatDate, assertDateInRange, findPrecedingBusinessDay,
+	parseDate, formatDate, assertDateInRange,
 } from '../utils/date.ts';
 import type {
 	DailyRate, CashRate, DailyResult, FetchOptions,
@@ -8,6 +8,7 @@ import type {
 import {
 	formatDateId, parseRate, computeTtm, cleanCellText,
 } from './utils.ts';
+import { findRatesOnOrBefore } from './business-day.ts';
 import { fetchShiftJisHtml, unexpectedPageError } from './fetch-source.ts';
 import { getDailyRateUnit } from './rate-units.ts';
 
@@ -150,5 +151,5 @@ export const fetchDaily = async (
 
 	const parsed = parseDate(date);
 	assertDateInRange(parsed, earliestDate);
-	return findPrecedingBusinessDay(parsed, target => fetchDailyForDate(target, options));
+	return findRatesOnOrBefore(parsed, target => fetchDailyForDate(target, options));
 };

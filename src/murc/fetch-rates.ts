@@ -1,11 +1,12 @@
 import { parseHTML } from 'linkedom';
 import {
-	parseDate, formatDate, assertDateInRange, findPrecedingBusinessDay,
+	parseDate, formatDate, assertDateInRange,
 } from '../utils/date.ts';
 import type { FetchOptions, Rate, RatesResult } from './types.ts';
 import {
 	parseRate, cleanCellText,
 } from './utils.ts';
+import { findRatesOnOrBefore } from './business-day.ts';
 import { fetchShiftJisHtml, unexpectedPageError } from './fetch-source.ts';
 import { getDailyRateUnit, normalizeDailyRateCode } from './rate-units.ts';
 
@@ -35,6 +36,11 @@ const fetchRatesForDate = async (
 	// Instead, select all <td> elements and group them manually.
 	const cells = Array.from(table.querySelectorAll('td'));
 
+	// A shifted or added column would otherwise be read silently as other rates
+	if (cells.length % columnsPerRow !== 0) {
+		throw unexpectedPageError(url, `${cells.length} cells are not rows of ${columnsPerRow}`);
+	}
+
 	const rates: Record<string, Rate> = {};
 
 	for (let i = 0; i + columnsPerRow <= cells.length; i += columnsPerRow) {
@@ -45,6 +51,13 @@ const fetchRatesForDate = async (
 		const tts = parseRate(cells[i + 3].textContent ?? '');
 		const ttb = parseRate(cells[i + 4].textContent ?? '');
 		const ttm = parseRate(cells[i + 5].textContent ?? '');
+
+		// MURC defines TTM as (TTS + TTB) / 2; a mismatch means the columns are misread
+		const hasAllRates = tts !== null && ttb !== null && ttm !== null;
+		const midpointGap = hasAllRates ? Math.abs(ttm - ((tts + ttb) / 2)) : 0;
+		if (midpointGap > 0.0051) {
+			throw unexpectedPageError(url, `${rawCode} TTM ${ttm} is not the midpoint of TTS ${tts} and TTB ${ttb}`);
+		}
 
 		if (code) {
 			rates[code] = {
@@ -88,5 +101,5 @@ export const fetchRates = async (
 ): Promise<RatesResult | null> => {
 	const parsed = parseDate(date);
 	assertDateInRange(parsed, earliestDate);
-	return findPrecedingBusinessDay(parsed, target => fetchRatesForDate(target, options));
+	return findRatesOnOrBefore(parsed, target => fetchRatesForDate(target, options));
 };

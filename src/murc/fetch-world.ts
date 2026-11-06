@@ -60,8 +60,16 @@ const parseCsvRecords = (text: string): string[][] => {
 	return records.filter(record => record.some(field => field.length > 0));
 };
 
-const parseCsv = (text: string): WorldRate[] => {
+// The first column is spelled "countory" or "country" depending on the region
+const headerColumns = ['japanese', 'currencyunit', 'codeaddress', 'quotations', 'rateofexchange', 'remarks'];
+
+export const parseCsv = (text: string, filename: string): WorldRate[] => {
 	const records = parseCsvRecords(text);
+	const header = records[0]?.map(field => field.trim().toLowerCase()) ?? [];
+	// A maintenance page served with HTTP 200 would otherwise parse as an empty region
+	if (headerColumns.some((column, index) => header[index + 1] !== column) || records.length < 2) {
+		throw new Error(`Unexpected world rates CSV (${filename}.csv): header ${JSON.stringify(records[0]?.slice(0, 7) ?? [])}, ${records.length} records`);
+	}
 
 	// Skip header row
 	// The CSVs contain HTML <br> tags and &yen; entities from the source page.
@@ -95,7 +103,7 @@ const fetchCsv = async (filename: string, options: FetchOptions): Promise<WorldR
 	}
 	const buffer = await response.arrayBuffer();
 	const text = new TextDecoder('shift_jis').decode(buffer);
-	return parseCsv(text);
+	return parseCsv(text, filename);
 };
 
 const parseDateFromText = (text: string): string => {

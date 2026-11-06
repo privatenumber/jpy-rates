@@ -1,6 +1,6 @@
 import { parseHTML } from 'linkedom';
 import { fetchSource, type FetchOptions } from '../utils/fetch-source.ts';
-import { normalizeFloat } from '../utils/number.ts';
+import { multiplyDecimals } from '../utils/number.ts';
 import {
 	attribution, baseUrl, isUnannounced, japaneseMonth, monthParts,
 } from './common.ts';
@@ -74,7 +74,7 @@ export const fetchBasicRates = async (
 			row.code !== null && row.usd !== null
 				? [[row.code, {
 					unit: row.unit,
-					rate: normalizeFloat(row.usd * basic),
+					rate: multiplyDecimals(row.usd, basic),
 				}]]
 				: []
 		))),

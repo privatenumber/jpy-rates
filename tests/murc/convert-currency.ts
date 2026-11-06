@@ -257,4 +257,37 @@ describe('convertCurrency', () => {
 		// 100 * 157.73 is 15772.999999999998 in binary floating point
 		expect(result.convertedAmount).toBe(15_773);
 	});
+
+	test('converted amounts keep every digit of large amounts', () => {
+		const result = convertWithRates({
+			source: 'https://example.com',
+			date: '2025-01-06',
+			rates: {
+				USD: {
+					name: 'US Dollar',
+					nameJa: 'US Dollar',
+					unit: 1,
+					tts: 158.73,
+					ttb: 156.73,
+					ttm: 157.73,
+				},
+			},
+		}, {
+			amount: 123_456_789.12,
+			from: 'USD',
+			to: 'JPY',
+		});
+		// 12 significant digits would round this to 19472839347.9
+		expect(result.convertedAmount).toBe(19_472_839_347.8976);
+	});
+
+	test('rejects an empty purpose instead of defaulting to TTM', async () => {
+		await expect(convertCurrency({
+			amount: 100,
+			from: 'USD',
+			to: 'JPY',
+			date: '2025-01-06',
+			purpose: '' as ConversionPurpose,
+		})).rejects.toThrow('Invalid purpose: ');
+	});
 });

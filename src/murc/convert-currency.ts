@@ -1,7 +1,7 @@
 import {
 	formatDate, parseDate,
 } from '../utils/date.ts';
-import { normalizeFloat } from '../utils/number.ts';
+import { multiplyDecimals } from '../utils/number.ts';
 import { fetchRates } from './fetch-rates.ts';
 import { rateTypeForPurpose } from './conversion-purpose.ts';
 import type {
@@ -22,7 +22,8 @@ const normalizeOptions = (options: ConvertWithRatesOptions) => {
 		throw new TypeError('Pass either rate or purpose, not both');
 	}
 	const purpose = options.purpose ?? null;
-	const rate = purpose ? rateTypeForPurpose(purpose) : (options.rate ?? 'ttm');
+	// An empty purpose is validated (and rejected) rather than treated as absent
+	const rate = purpose === null ? (options.rate ?? 'ttm') : rateTypeForPurpose(purpose);
 	if (!supportedRateTypes.has(rate)) {
 		throw new Error(`Invalid rate: ${rate} (expected tts, ttb, or ttm)`);
 	}
@@ -64,9 +65,10 @@ const convert = (
 		throw new Error(`Currency ${currency} has an invalid ${rate.toUpperCase()} rate (${rateValue}) for ${ratesResult.date}`);
 	}
 
-	const convertedAmount = normalizeFloat(convertsFromJpy
+	// Units are powers of ten (1 or 100), so dividing by a unit is an exact decimal factor
+	const convertedAmount = convertsFromJpy
 		? (amount / rateValue) * quote.unit
-		: (amount * rateValue) / quote.unit);
+		: multiplyDecimals(amount, rateValue, 1 / quote.unit);
 
 	return {
 		source: ratesResult.source,
