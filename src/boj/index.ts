@@ -1,3 +1,4 @@
+export type { FetchOptions } from '../utils/fetch-source.ts';
 export type {
 	BasicRatesResult, ReferenceRate, ReportingRate, ReportingRatesResult,
 } from './types.ts';
