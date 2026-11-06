@@ -1,44 +1,28 @@
 import { cli } from 'cleye';
 
 const argv = cli({
-	name: 'murc-rates',
+	name: 'jpy-rates',
 	strictFlags: true,
 	commands: {
-		rates: {
-			description: 'Fetch exchange rates for a date',
-			loader: () => import('./commands/rates.ts'),
+		guide: {
+			description: 'Show which official rate applies to a tax or reporting purpose',
+			loader: () => import('./guide.ts'),
 		},
-		daily: {
-			description: 'Fetch daily exchange rates',
-			loader: () => import('./commands/daily.ts'),
+		sources: {
+			description: 'List the supported rate sources and their terms',
+			loader: () => import('./sources.ts'),
 		},
-		convert: {
-			description: 'Convert between JPY and one foreign currency',
-			loader: () => import('./commands/convert.ts'),
+		murc: {
+			description: 'MUFG Bank customer rates published by MURC (TTS/TTB/TTM)',
+			loader: () => import('./murc/index.ts'),
 		},
-		monthly: {
-			description: 'Fetch monthly exchange rates',
-			loader: () => import('./commands/monthly.ts'),
+		customs: {
+			description: 'Japan Customs weekly rates for import valuation',
+			loader: () => import('./customs/index.ts'),
 		},
-		yearly: {
-			description: 'Fetch yearly exchange rates',
-			loader: () => import('./commands/yearly.ts'),
-		},
-		world: {
-			description: 'Fetch world currency quotations',
-			loader: () => import('./commands/world.ts'),
-		},
-		reference: {
-			description: 'Fetch yearly reference rates',
-			loader: () => import('./commands/reference.ts'),
-		},
-		'download-source': {
-			description: 'Download the official archive XLS file',
-			loader: () => import('./commands/download-source.ts'),
-		},
-		'parse-archive': {
-			description: 'Parse a local archive XLS file',
-			loader: () => import('./commands/parse-archive.ts'),
+		boj: {
+			description: 'Bank of Japan rates designated for foreign exchange reports',
+			loader: () => import('./boj/index.ts'),
 		},
 	},
 });
