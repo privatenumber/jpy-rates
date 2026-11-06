@@ -78,6 +78,16 @@ jpy-rates boj basic 2026-11 -c eur       # 基準・裁定外国為替相場
 jpy-rates boj reporting 2026-11 -c eur   # 報告省令レート
 ```
 
+### Check the market rate
+
+```bash
+jpy-rates boj market 2026-10-01   # Tokyo interbank USD/JPY: 9:00, 17:00, central, high, low
+jpy-rates boj market 2026-10      # monthly average and month-end
+jpy-rates boj effective 2026-09   # the yen's nominal and real effective exchange rates
+```
+
+Market rates are for analysis and sanity checks. Tax and reporting rules name other rates; run `jpy-rates guide` to see which one applies.
+
 ### Look up historical rates
 
 ```bash
@@ -117,6 +127,7 @@ The package ships with a built-in [agent skill](https://agentskills.io) that tel
 | [MURC](https://www.murc-kawasesouba.jp/fx/index.php) | [MUFG Bank](https://www.bk.mufg.jp/) customer TTS/TTB/TTM since 1990, cash rates, monthly and yearly summaries | Income tax, stock sales and dividends, inheritance, 国外財産調書 |
 | [Japan Customs](https://www.customs.go.jp/tetsuzuki/kawase/index.htm) | Weekly rates for customs valuation since 2008 | Customs duty, import consumption tax, export declarations |
 | [Bank of Japan](https://www.boj.or.jp/about/services/tame/tame_rate/index.htm) | Monthly rates set by the Minister of Finance since 2016 | Foreign Exchange Act reports |
+| [BOJ Time-Series Data Search](https://www.stat-search.boj.or.jp/) | Tokyo interbank USD/JPY since 1973 (daily since 1998), effective exchange rate indices since 1970 | Market reference and analysis |
 
 Every result links to the page or file it was parsed from. Data is fetched when you ask for it; nothing is bundled or cached.
 
@@ -148,3 +159,4 @@ jpy-rates is an unofficial client. It is not affiliated with or endorsed by MUFG
 | MURC | [Site-use terms](https://www.murc.jp/about/) | Follow MURC's terms. This package grants no permission to redistribute or sell MURC content; review the terms before public, commercial, cached, or high-volume use. |
 | Japan Customs | [Terms](https://www.customs.go.jp/kyotsu/rules.htm), [PDL1.0](https://www.digital.go.jp/resources/open_data/public_data_license_v1.0) | Credit the source; results include an `attribution` string in the PDL1.0 format. Label values you derive. |
 | Bank of Japan | [Copyright and disclaimer](https://www.boj.or.jp/about/copyright.htm) | Credit the source. Commercial copying needs prior consultation with the BOJ. |
+| BOJ Time-Series Data Search API | [API terms](https://www.stat-search.boj.or.jp/ssi/docs/info/api_notice.pdf) | Show the BOJ credit text, included as `attribution` in results. If you publish a service built on these results, the terms also ask you to notify the BOJ. Do not send high-frequency requests. |

@@ -38,6 +38,8 @@ Use jpy-rates when a task needs a yen conversion that must follow a Japanese rul
 
 3. In the answer, state the rate, rate type, the date actually used (weekends and holidays fall back to the nearest earlier date), the source URL, and the rule citation from the guide.
 
+For a market reference rather than a rule-designated rate, `jpy-rates boj market <YYYY-MM-DD|YYYY-MM>` gives Tokyo interbank USD/JPY and `jpy-rates boj effective <YYYY-MM>` gives the yen's effective exchange rate indices. Do not use them where the guide names another rate.
+
 Add `--json` to any command for structured output. `jpy-rates sources` lists the sources with coverage and terms.
 
 ## Caveats to pass on

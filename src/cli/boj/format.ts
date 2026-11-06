@@ -1,5 +1,8 @@
 import type { Ansis } from 'ansis';
-import type { BasicRatesResult, ReportingRatesResult } from '../../boj/types.ts';
+import type {
+	BasicRatesResult, DailyMarketRatesResult, EffectiveRatesResult,
+	MonthlyMarketRatesResult, ReportingRatesResult,
+} from '../../boj/types.ts';
 import { formatTable } from '../format-table.ts';
 
 export const formatBasic = (result: BasicRatesResult, style: Ansis, showBasic = true): string => {
@@ -51,3 +54,61 @@ export const formatReporting = (result: ReportingRatesResult, style: Ansis): str
 		result.attribution,
 	].join('\n');
 };
+
+const rateText = (rate: number | null, style: Ansis) => (rate === null ? style.dim('—') : String(rate));
+
+const footer = (result: { source: string;
+	attribution: string; }) => ['', `Source: ${result.source}`, result.attribution];
+
+export const formatDailyMarket = (
+	result: DailyMarketRatesResult,
+	style: Ansis,
+	title: string,
+): string => [
+	style.bold(title),
+	'',
+	formatTable([
+		{ header: 'Date' },
+		...['9:00', '17:00', 'Center', 'High', 'Low'].map(header => ({
+			header,
+			align: 'right' as const,
+		})),
+	], result.days.map(day => [
+		day.date,
+		...[day.at0900, day.at1700, day.center, day.high, day.low].map(rate => rateText(rate, style)),
+	]), style),
+	style.dim('JPY per USD, Tokyo interbank spot market. — means the BOJ has no value.'),
+	...footer(result),
+].join('\n');
+
+export const formatMonthlyMarket = (result: MonthlyMarketRatesResult, style: Ansis): string => [
+	style.bold(`Tokyo market USD/JPY ${result.month}`),
+	'',
+	formatTable([{ header: '' }, {
+		header: '17:00',
+		align: 'right',
+	}, {
+		header: 'Center',
+		align: 'right',
+	}], [
+		['Average', rateText(result.average.at1700, style), rateText(result.average.center, style)],
+		['Month end', rateText(result.end.at1700, style), rateText(result.end.center, style)],
+	], style),
+	`High: ${rateText(result.high, style)}  Low: ${rateText(result.low, style)}`,
+	style.dim('JPY per USD, Tokyo interbank spot market. — means the BOJ has no value.'),
+	...footer(result),
+].join('\n');
+
+export const formatEffective = (result: EffectiveRatesResult, style: Ansis): string => [
+	style.bold(`Yen effective exchange rate indices ${result.month}`),
+	'',
+	formatTable([{ header: 'Index' }, {
+		header: result.base,
+		align: 'right',
+	}], [
+		['Nominal', rateText(result.nominal, style)],
+		['Real', rateText(result.real, style)],
+	], style),
+	style.dim('Higher means a stronger yen. The real index is published about a month after the nominal index.'),
+	...footer(result),
+].join('\n');

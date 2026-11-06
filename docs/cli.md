@@ -11,8 +11,8 @@ Or install it globally with `npm install -g jpy-rates`. Requires Node.js 22.22.2
 | [`guide`](#guide) | Find which rate a tax or reporting rule requires |
 | [`sources`](#sources) | List the data sources and their terms of use |
 | [`murc`](#murc) | Get MUFG Bank customer rates (TTS/TTB/TTM) and convert amounts |
-| [`customs`](#customs) | Get Japan Customs weekly rates for import valuation |
-| [`boj`](#boj) | Get Bank of Japan rates for Foreign Exchange Act reports |
+| [`customs`](#customs) | Get Japan Customs weekly rates for import and export valuation |
+| [`boj`](#boj) | Get Bank of Japan rates for Foreign Exchange Act reports, Tokyo market USD/JPY, and effective exchange rates |
 
 ## Output
 
@@ -155,7 +155,7 @@ Currencies published as equal to another currency, such as BND to SGD, show the 
 
 ## boj
 
-Bank of Japan announcements of the rates for reports under the Foreign Exchange Act (外為法). Monthly from 2016-01.
+`basic` and `reporting` are the Bank of Japan announcements of the rates for reports under the Foreign Exchange Act (外為法), monthly from 2016-01. `market` and `effective` read the BOJ Time-Series Data Search API, which needs no API key; their output includes the credit text the API terms require.
 
 ### boj basic
 
@@ -172,3 +172,31 @@ jpy-rates boj reporting <YYYY-MM> [-c <currency>] [--json]
 ```
 
 The reporting ordinance rates (報告省令レート), quoted in USD per stated currency units, for reports that state amounts in USD.
+
+### boj market
+
+```bash
+jpy-rates boj market <YYYY-MM-DD | YYYY-MM> [--daily] [--json]
+```
+
+Tokyo interbank USD/JPY spot rates in JPY per USD. These are market rates, not the bank customer or designated rates that the tax and reporting rules in [`guide`](#guide) name.
+
+- With a date, prints that day's 9:00, 17:00, central (中心相場), high, and low rates. A weekend, a holiday, or a day not published yet exits with an error. Daily rates start in 1998 (the 17:00 rate) and 1999 (the others).
+- With a month, prints the monthly average and month-end of the 17:00 and central rates, and the month's high and low. A month is summarized after it ends. Monthly rates start in 1973 (the 17:00 rate) and 1992-08 (the others).
+- `--daily` with a month lists every trading day instead.
+
+```bash
+jpy-rates boj market 2026-10-01
+jpy-rates boj market 2026-10
+jpy-rates boj market 2026-10 --daily
+```
+
+A value the BOJ does not have, such as the central rate before 1992-08, prints as `—` (`null` in JSON).
+
+### boj effective
+
+```bash
+jpy-rates boj effective <YYYY-MM> [--json]
+```
+
+The yen's nominal and real effective exchange rate indices (実効為替レート), from 1970-01. A higher index means a stronger yen. The real index is published about a month after the nominal index, so it is `null` for the latest month.

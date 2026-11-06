@@ -35,7 +35,7 @@ Those cases need prior consultation with the BOJ, and content may not be modifie
 
 Inference, not stated by the BOJ: the 基準外国為替相場 and 裁定外国為替相場 pages are 財務大臣公示 (announcements by the Minister of Finance). 著作権法13条2号 excludes `告示、訓令、通達その他これらに類するもの` from copyright, so the announced values themselves are likely not protected. The same reasoning applies to the Customs 税関長公示 rates and to the NTA directive excerpts quoted in `src/guide/topics.ts`.
 
-### BOJ time-series API (not implemented)
+### BOJ time-series API
 
 The statistics site ([notes](https://www.stat-search.boj.or.jp/ssi/docs/info/notice.html)) has the same copying rules. Its API terms ([api_notice.pdf](https://www.stat-search.boj.or.jp/ssi/docs/info/api_notice.pdf)) add:
 
@@ -43,7 +43,19 @@ The statistics site ([notes](https://www.stat-search.boj.or.jp/ssi/docs/info/not
 - show the credit `このサービスは、日本銀行時系列統計データ検索サイトの API 機能を使用しています。サービスの内容は日本銀行によって保証されたものではありません。`;
 - no high-frequency access.
 
-The API serves interbank rates, not the customer or designated rates that the tax and reporting rules require, so it is not implemented. Adding it requires the credit text and the maintainer's notification.
+The terms were re-read on 2026-11-07. They are usage conditions (`以下の留意点を遵守してください`), not a statute; the credit is phrased as a request (`クレジット表示をお願いいたします`) and may be shown anywhere users can see it. No API key or registration is required.
+
+Implemented on 2026-11-07 as `boj market` and `boj effective` ([`src/boj/stat-api.ts`](../../src/boj/stat-api.ts)), after the maintainer chose to support it because it needs no key. How each condition is met:
+
+- Credit: the `boj-stat` source `attribution` is the exact credit text. Every result carries it, the CLI prints it, and the README terms table names it.
+- Access: requests are made only when the user asks, and each call fetches one month of all needed series in a single request.
+- Notification: not sent yet. See the checklist below.
+
+The API serves interbank market rates, not the customer or designated rates that the tax and reporting rules require, so no guide topic points to it.
+
+### Before the first npm publish
+
+- [ ] The maintainer emails `post.rsd17@boj.or.jp` with the subject `【検索サイト API を利用したサービス公開】`, naming the package (npm and GitHub URLs) and the series used (FM08: FXERD01-05, FXERM03/05-09; FM09: FX180110001-2). The API terms require this notice when a service that uses the API is published. An agent must not send it.
 
 ## Evaluated, not implemented
 

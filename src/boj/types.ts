@@ -61,3 +61,92 @@ export type ReportingRatesResult = {
 	month: string;
 	rates: Record<string, ReportingRate>;
 };
+
+/**
+ * Tokyo interbank USD/JPY spot rates for one trading day, in JPY per USD.
+ * null where the BOJ has no value.
+ */
+export type DailyMarketRate = {
+
+	/** Trading day (YYYY-MM-DD) */
+	date: string;
+
+	/** Spot rate at 9:00 JST (FXERD01) */
+	at0900: number | null;
+
+	/** Spot rate at 17:00 JST (FXERD04) */
+	at1700: number | null;
+
+	/** Central rate (中心相場, FXERD05) */
+	center: number | null;
+
+	/** Highest rate of the day (FXERD02) */
+	high: number | null;
+
+	/** Lowest rate of the day (FXERD03) */
+	low: number | null;
+};
+
+export type DailyMarketRatesResult = {
+
+	/** BOJ API request the rates were read from */
+	source: string;
+	attribution: string;
+
+	/** YYYY-MM */
+	month: string;
+
+	/** Trading days with published values, in date order */
+	days: DailyMarketRate[];
+};
+
+/**
+ * Monthly summary of Tokyo interbank USD/JPY spot rates, in JPY per USD.
+ * null where the BOJ has no value.
+ */
+export type MonthlyMarketRatesResult = {
+	source: string;
+	attribution: string;
+
+	/** YYYY-MM */
+	month: string;
+
+	/**
+	 * Monthly averages of the 17:00 rate (FXERM07, from 1973)
+	 * and the central rate (FXERM09, from 1992-08)
+	 */
+	average: {
+		at1700: number | null;
+		center: number | null;
+	};
+
+	/** Month-end 17:00 rate (FXERM06) and central rate (FXERM08) */
+	end: {
+		at1700: number | null;
+		center: number | null;
+	};
+
+	/** Highest (FXERM03) and lowest (FXERM05) rates of the month */
+	high: number | null;
+	low: number | null;
+};
+
+export type EffectiveRatesResult = {
+	source: string;
+	attribution: string;
+
+	/** YYYY-MM */
+	month: string;
+
+	/** Index base as published, such as "CY 2020=100" */
+	base: string;
+
+	/** Nominal effective exchange rate index (FX180110001) */
+	nominal: number | null;
+
+	/**
+	 * Real effective exchange rate index (FX180110002).
+	 * Published about a month later than the nominal index.
+	 */
+	real: number | null;
+};

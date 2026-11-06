@@ -7,7 +7,7 @@ jpy-rates is an ESM package for Node.js 22.22.2 or later. Each source has its ow
 | [`jpy-rates`](#guide-jpy-rates) | The rate guide: which rate a rule requires, with rule excerpts, plus the source list |
 | [`jpy-rates/murc`](#murc-jpy-ratesmurc) | MUFG Bank customer rates published by MURC |
 | [`jpy-rates/customs`](#japan-customs-jpy-ratescustoms) | Japan Customs weekly rates for customs valuation |
-| [`jpy-rates/boj`](#bank-of-japan-jpy-ratesboj) | Bank of Japan rates for Foreign Exchange Act reports |
+| [`jpy-rates/boj`](#bank-of-japan-jpy-ratesboj) | Bank of Japan rates for Foreign Exchange Act reports, Tokyo market USD/JPY, and effective exchange rates |
 
 ## Common behavior
 
@@ -15,7 +15,7 @@ jpy-rates is an ESM package for Node.js 22.22.2 or later. Each source has its ow
 - **Ranges:** requests outside the source's available range, or in the future in Japan time, throw a `RangeError` without making a request. Functions return `null` when the source has no data for an in-range request.
 - **Unexpected responses:** unexpected redirects and pages without the expected rate table throw instead of being treated as holidays.
 - **Cancellation:** every function that fetches accepts an optional last argument `{ signal }` with an `AbortSignal`. Aborting stops retries and business-day walkback.
-- **Sources and attribution:** every result includes a `source` URL for the page or file it was parsed from. Customs and BOJ results also include an `attribution` string to show when you publish the data.
+- **Sources and attribution:** every result includes a `source` URL for the page or file it was parsed from. Customs and BOJ results also include an `attribution` string to show when you publish the data. For the BOJ Time-Series Data Search API, the `attribution` is the credit text that the API terms require.
 
 ## Guide (`jpy-rates`)
 
@@ -400,3 +400,49 @@ const reporting = await fetchReportingRates(2026, 11)
 - `reference[].code` is `null` for a currency name this package does not recognize, so new currencies are not dropped.
 - `usd` is `null` when the BOJ lists a currency with a dash instead of a rate (for example MMK in 2021-05). Such currencies stay in `reference` and `rates` but have no `arbitrated` entry.
 - Both functions return `null` for a month that is not announced yet (announcements come out around the 20th of the previous month).
+
+### Tokyo market and effective exchange rates
+
+These functions read the [BOJ Time-Series Data Search](https://www.stat-search.boj.or.jp/) API. It needs no API key. Its [terms](https://www.stat-search.boj.or.jp/ssi/docs/info/api_notice.pdf) ask services to show a credit (the `attribution` field) and not to send high-frequency requests. Each call makes one request for a whole month.
+
+These are market rates, not the bank customer or designated rates that tax and reporting rules name. Use [`getGuideTopic`](#guide-jpy-rates) for those.
+
+```ts
+import { fetchDailyMarketRates, fetchEffectiveRates, fetchMonthlyMarketRates } from 'jpy-rates/boj'
+
+const daily = await fetchDailyMarketRates(2026, 10)
+// {
+//   month: '2026-10',
+//   days: [
+//     {
+//       date: '2026-10-01',
+//       at0900: 157.56, at1700: 158.39, center: 158.15, high: 158.45, low: 157.37,
+//     },
+//     ...  ← trading days only, JPY per USD
+//   ],
+//   source, attribution,
+// }
+
+const monthly = await fetchMonthlyMarketRates(2026, 10)
+// {
+//   month: '2026-10',
+//   average: { at1700: 157.89, center: 157.96 },
+//   end: { at1700: 157.56, center: 157.5 },
+//   high: 158.63,
+//   low: 156.08,
+//   source, attribution,
+// }
+
+const effective = await fetchEffectiveRates(2026, 9)
+// { month: '2026-09', base: 'CY 2020=100', nominal: 69.49, real: 66.61, source, attribution }
+```
+
+| Function | Earliest month | Series |
+| --- | --- | --- |
+| `fetchDailyMarketRates(year, month)` | 1998-01 | 9:00 (FXERD01), 17:00 (FXERD04), central (FXERD05), high (FXERD02), low (FXERD03) |
+| `fetchMonthlyMarketRates(year, month)` | 1973-01 | 17:00 average and month-end (FXERM07, FXERM06); central average and month-end (FXERM09, FXERM08), high (FXERM03), and low (FXERM05) from 1992-08 |
+| `fetchEffectiveRates(year, month)` | 1970-01 | Nominal (FX180110001) and real (FX180110002) effective exchange rate indices |
+
+- A value the BOJ does not have is `null`, such as the central rate before 1992-08, or the 9:00 rate in 1998.
+- Each function returns `null` when the month has no published values yet. The monthly summary appears after the month ends. The real effective index appears about a month after the nominal index.
+- An API error throws with the BOJ's message, for example `BOJ API error (HTTP 400): Nonexistent series code：1`.

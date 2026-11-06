@@ -1,4 +1,4 @@
-export type SourceId = 'murc' | 'customs' | 'boj';
+export type SourceId = 'murc' | 'customs' | 'boj' | 'boj-stat';
 
 export type RateSource = {
 	id: SourceId;
@@ -56,5 +56,19 @@ export const rateSources: RateSource[] = [
 			url: 'https://www.boj.or.jp/about/copyright.htm',
 		},
 		attribution: '出典：日本銀行ウェブサイト（https://www.boj.or.jp/about/services/tame/tame_rate/index.htm）',
+	},
+	{
+		id: 'boj-stat',
+		name: 'Bank of Japan Time-Series Data Search API',
+		publisher: 'Bank of Japan',
+		provides: 'Tokyo interbank USD/JPY spot rates (daily and monthly) and the yen\'s effective exchange rate indices',
+		coverage: 'Daily from 1998, monthly from 1973, effective indices from 1970',
+		url: 'https://www.stat-search.boj.or.jp/',
+		terms: {
+			summary: 'No API key. Services must show the BOJ credit text and must not send high-frequency requests.',
+			url: 'https://www.stat-search.boj.or.jp/ssi/docs/info/api_notice.pdf',
+		},
+		// Credit text required by the API terms, section 2
+		attribution: 'このサービスは、日本銀行時系列統計データ検索サイトの API 機能を使用しています。サービスの内容は日本銀行によって保証されたものではありません。',
 	},
 ];
