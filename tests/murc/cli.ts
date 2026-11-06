@@ -313,10 +313,13 @@ describe('cli', () => {
 			'rates',
 			'2025-01-06',
 		], {
+			// ansis enables color in CI (such as GitHub Actions) even when piped
 			env: {
 				...process.env,
 				COLORTERM: 'truecolor',
 				FORCE_COLOR: undefined,
+				CI: undefined,
+				GITHUB_ACTIONS: undefined,
 			},
 		});
 		expect(result.stdout).not.toContain('\u001B[');
