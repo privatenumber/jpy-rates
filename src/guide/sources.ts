@@ -55,6 +55,6 @@ export const rateSources: RateSource[] = [
 			summary: 'Copying is allowed with attribution, except commercial copying, which needs prior consultation with the BOJ.',
 			url: 'https://www.boj.or.jp/about/copyright.htm',
 		},
-		attribution: 'Source: Bank of Japan (https://www.boj.or.jp/about/services/tame/tame_rate/index.htm)',
+		attribution: '出典：日本銀行ウェブサイト（https://www.boj.or.jp/about/services/tame/tame_rate/index.htm）',
 	},
 ];
