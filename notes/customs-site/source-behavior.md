@@ -16,6 +16,10 @@ pdf.js needs its bundled Japanese CMaps (`cMapUrl`, `cMapPacked: true`); without
 
 The period line reads, for example, `適用期間：令和８年10月４日から令和８年10月10日まで`. The 2019 era-transition week prints `平成31年4月28日から平成31年(2019年)5月4日まで` (NFKC-normalized): Heisei 31 for a May date, with the Western year in parentheses. The parser accepts the annotation when it agrees with the era year and otherwise rejects era dates outside their era.
 
+Eight consecutive 2011 weeks (2011-05-29 to 2011-07-17) print a space before single-digit months and days, such as `平成23年 6月12日`; the parser removes whitespace before matching.
+
+A full sweep on 2026-11-07 parsed all 984 weekly PDFs (2008-01-06 to 2026-11-14) with the row-count cross-check, after the whitespace fix. The index had no gaps between weeks, and every period was 7 days.
+
 | Requested date | Period | Rates | USD |
 | --- | --- | ---: | ---: |
 | 2008-01-20 | 2008-01-20 to 2008-01-26 | 98 | 109.50 |

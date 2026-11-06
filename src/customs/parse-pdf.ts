@@ -33,7 +33,9 @@ export const parseCustomsText = (
 	pages: Item[][],
 	expected: Period,
 ): Record<string, CustomsRate> => {
-	const periodText = pages.flat().map(item => item.str).join('').normalize('NFKC');
+	// Some weeks print spaces inside dates, e.g. 平成23年 6月12日 (2011-05-29 to 2011-07-17)
+	const periodText = pages.flat().map(item => item.str).join('').normalize('NFKC')
+		.replaceAll(/\s/g, '');
 	const period = periodText.match(/適用期間\s*[:：]\s*(平成|令和)(元|\d+)年(?:\((\d{4})年\))?(\d+)月(\d+)日から(平成|令和)(元|\d+)年(?:\((\d{4})年\))?(\d+)月(\d+)日まで/);
 	if (!period) { throw new Error('Customs PDF has no recognizable application period'); }
 	const start = eraDate(period[1]!, period[2]!, period[3], period[4]!, period[5]!);

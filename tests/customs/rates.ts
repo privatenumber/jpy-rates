@@ -69,6 +69,8 @@ describe('Customs rates', () => {
 			end: '2019-05-04',
 		};
 		expect(parseCustomsText(page('適用期間：平成31年4月28日から令和元年5月4日まで'), period).USD.rate).toBe(10);
+		// Some 2011 weeks print spaces inside dates
+		expect(parseCustomsText(page('適用期間：平成31年 4月28日から令和元年 5月 4日まで'), period).USD.rate).toBe(10);
 		expect(parseCustomsText(page('適用期間：平成31年4月28日から平成31年（2019年）5月4日まで'), period).USD.rate).toBe(10);
 		expect(() => parseCustomsText(page('適用期間：平成31年4月28日から平成31年（2020年）5月4日まで'), period)).toThrow('does not match Western year');
 		expect(() => parseCustomsText(page('適用期間：平成31年4月28日から平成31年5月4日まで'), period)).toThrow('Invalid Japanese era date');
