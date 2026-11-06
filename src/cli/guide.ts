@@ -70,6 +70,6 @@ const topicId = argv._.topic;
 if (topicId === undefined) {
 	console.log(argv.flags.json ? JSON.stringify(guideTopics) : formatTopicList());
 } else {
-	const topic = getGuideTopic(topicId) ?? fail(`Unknown topic: ${topicId} (expected ${guideTopics.map(entry => entry.id).join(', ')})`);
+	const topic = getGuideTopic(topicId.trim().toLowerCase()) ?? fail(`Unknown topic: ${topicId} (expected ${guideTopics.map(entry => entry.id).join(', ')})`);
 	console.log(argv.flags.json ? JSON.stringify(topic) : formatTopic(topic));
 }

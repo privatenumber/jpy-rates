@@ -67,6 +67,8 @@ describe('fetchRates', () => {
 	});
 
 	test('normalizes legacy Belgian Franc commercial label to BEF per 100 units', async () => {
+		// Asserts synthetic fixture values
+		if (process.env.JPY_RATES_LIVE) { return; }
 		const result = await fetchRates('1994-01-05');
 		expect(result).not.toBeNull();
 		expect(result!.rates.BEF).toBeDefined();

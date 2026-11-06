@@ -70,6 +70,8 @@ describe('cli', () => {
 	});
 
 	test('convert --json converts USD to JPY', async () => {
+		// Asserts synthetic fixture values
+		if (process.env.JPY_RATES_LIVE) { return; }
 		const stdout = await cli([
 			'convert',
 			'--amount',
@@ -92,6 +94,8 @@ describe('cli', () => {
 	});
 
 	test('convert outputs a readable summary', async () => {
+		// Asserts synthetic fixture values
+		if (process.env.JPY_RATES_LIVE) { return; }
 		const stdout = await cli([
 			'convert',
 			'--amount',
@@ -111,6 +115,8 @@ describe('cli', () => {
 	});
 
 	test('convert accepts a negative amount after a numeric flag', async () => {
+		// Asserts synthetic fixture values
+		if (process.env.JPY_RATES_LIVE) { return; }
 		for (const amountFlag of ['--amount', '-a']) {
 			const stdout = await cli([
 				'convert',
@@ -148,6 +154,8 @@ describe('cli', () => {
 	});
 
 	test('convert supports short flag aliases and selected rate', async () => {
+		// Asserts synthetic fixture values
+		if (process.env.JPY_RATES_LIVE) { return; }
 		const stdout = await cli([
 			'convert',
 			'-a',

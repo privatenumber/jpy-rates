@@ -1,6 +1,7 @@
 import {
 	formatDate, parseDate,
 } from '../utils/date.ts';
+import { normalizeFloat } from '../utils/number.ts';
 import { fetchRates } from './fetch-rates.ts';
 import { rateTypeForPurpose } from './conversion-purpose.ts';
 import type {
@@ -63,9 +64,9 @@ const convert = (
 		throw new Error(`Currency ${currency} has an invalid ${rate.toUpperCase()} rate (${rateValue}) for ${ratesResult.date}`);
 	}
 
-	const convertedAmount = convertsFromJpy
+	const convertedAmount = normalizeFloat(convertsFromJpy
 		? (amount / rateValue) * quote.unit
-		: (amount * rateValue) / quote.unit;
+		: (amount * rateValue) / quote.unit);
 
 	return {
 		source: ratesResult.source,

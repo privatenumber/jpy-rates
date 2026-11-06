@@ -51,6 +51,8 @@ describe('guide', () => {
 		expect(topic).toContain('対顧客直物電信買相場');
 		expect(topic).toContain('jpy-rates murc convert');
 
+		expect(await cli(['guide', 'Stock-Sale'])).toContain('措置法通達37の10・37の11共-6');
+
 		const json = JSON.parse(await cli(['guide', 'import', '--json']));
 		expect(json.source).toBe('customs');
 	});

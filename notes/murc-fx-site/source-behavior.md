@@ -72,7 +72,7 @@ The local market tables on `monthend/index.php` (`table.data-table7` after the f
 
 Example row from `a_2024`, January 3: CNY 5.008 per 100 JPY, TWD 0.2196 per JPY, MYR 3.314 per 100 JPY. `fetchReference` reports this as `perJpyUnit`.
 
-**Monthly summary sheets**: 1990-2000 workbooks have an `average` sheet with monthly averages only; there are no monthly highs or lows to report.
+**Monthly summary sheets**: 1990-2000 workbooks have an `average` sheet with monthly averages only; there are no monthly highs or lows to report. From 2001 the `月毎`/`月毎HLA` sheet labels each month, and 2001-2009 workbooks use a full-width `２月` for February (observed in 2001-2006 and 2008; 2007 and 2009 use `2月`). Without NFKC normalization, February's summary was reported as month 1.
 
 **Excel serial dates**: converting with a local-time 1900 epoch shifts dates by one day in zones whose 1900 offset differs from today's, for example `Asia/Shanghai` (1900 LMT +08:05:43) and `Pacific/Apia`. The project converts in UTC; see the `excelDateToIso` test in [`tests/murc/utils.ts`](../../tests/murc/utils.ts).
 

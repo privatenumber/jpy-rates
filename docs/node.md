@@ -89,7 +89,7 @@ Converts between JPY and one foreign currency using daily TTS/TTB/TTM rates. Def
 - `purpose`: selects the rate type a tax rule specifies, instead of `rate` (optional): `'general' | 'stock-sale' | 'stock-acquisition' | 'dividend' | 'inheritance-asset' | 'inheritance-debt' | 'foreign-asset-report'`. Throws if combined with `rate`
 - `signal`: `AbortSignal` (optional)
 
-The result includes both the requested date and the source business date actually used. Converted amounts are not rounded.
+The result includes both the requested date and the source business date actually used. Converted amounts are not rounded to yen or cents; they are normalized to 12 significant digits to remove floating-point noise (so `100 × 157.73` is `15773`, not `15772.999999999998`).
 
 ```ts
 const result = await convertCurrency({
@@ -398,4 +398,5 @@ const reporting = await fetchReportingRates(2026, 11)
 - For other currencies, the announcement states the rate is the USD market rate (`reference`) arbitraged through the basic rate. `arbitrated` computes that as `usd × basic`. It is derived by this package, and the BOJ states no rounding.
 - `reporting` rates are quoted in USD (`usd` per `unit` units), for reports that state amounts in USD.
 - `reference[].code` is `null` for a currency name this package does not recognize, so new currencies are not dropped.
+- `usd` is `null` when the BOJ lists a currency with a dash instead of a rate (for example MMK in 2021-05). Such currencies stay in `reference` and `rates` but have no `arbitrated` entry.
 - Both functions return `null` for a month that is not announced yet (announcements come out around the 20th of the previous month).

@@ -109,15 +109,17 @@ describe('archive', () => {
 	test('parseArchiveWorkbook(2005) reads 最高値/最低値/平均値 summaries', async () => {
 		const result = await parseArchiveYear(2005);
 		const usd = result.currencies.USD;
-		expect(usd.monthly.length).toBe(12);
+		expect(usd.monthly.map(entry => entry.month)).toStrictEqual(
+			Array.from({ length: 12 }, (_, index) => index + 1),
+		);
 		expect(usd.monthly[0].high).toBeGreaterThan(0);
 		expect(usd.monthly[0].low).toBeGreaterThan(0);
 		expect(usd.monthly[0].average).toBeGreaterThan(0);
 		expect(usd.annual.high).toBeGreaterThan(0);
 	});
 
-	test('parseArchiveWorkbook(2001) reads monthly averages without inventing high/low', async () => {
-		const result = await parseArchiveYear(2001);
+	test('parseArchiveWorkbook(2000) reads monthly averages without inventing high/low', async () => {
+		const result = await parseArchiveYear(2000);
 		const usd = result.currencies.USD;
 		expect(usd.monthly.map(entry => entry.month)).toStrictEqual(
 			Array.from({ length: 12 }, (_, index) => index + 1),

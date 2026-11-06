@@ -127,7 +127,7 @@ const emptyAnnualSummary = (): ArchiveAnnualSummary => ({
 });
 
 const parseSummaryLabel = (text: string): 'high' | 'low' | 'average' | null => {
-	const label = text.replaceAll(/[※*]/gu, '');
+	const label = text.normalize('NFKC').replaceAll(/[※*]/gu, '');
 	if (label === '高値' || label === '最高値') { return 'high'; }
 	if (label === '安値' || label === '最低値') { return 'low'; }
 	if (label === '平均' || label === '平均値') { return 'average'; }
@@ -181,7 +181,8 @@ const parseMonthlySummarySheet = (
 
 		// Detect month label (e.g. "1月", "2月", ...)
 		if (typeof cell0 === 'string') {
-			const monthMatch = cell0.match(/^(\d{1,2})月$/);
+			// 2001-2009 workbooks label February with full-width digits (２月)
+			const monthMatch = cell0.normalize('NFKC').match(/^(\d{1,2})月$/);
 			if (monthMatch) {
 				currentMonth = Number(monthMatch[1]);
 				monthHighs.clear();

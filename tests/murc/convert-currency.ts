@@ -14,7 +14,7 @@ describe('convertCurrency', () => {
 		});
 
 		expect(result).not.toBeNull();
-		expect(result!.convertedAmount).toBe(100 * rates!.rates.USD.ttm!);
+		expect(result!.convertedAmount).toBeCloseTo(100 * rates!.rates.USD.ttm!, 8);
 		expect(result!.rate).toBe('ttm');
 		expect(result!.rateValue).toBe(rates!.rates.USD.ttm);
 		expect(result!.unit).toBe(1);
@@ -31,7 +31,7 @@ describe('convertCurrency', () => {
 		});
 
 		expect(result).not.toBeNull();
-		expect(result!.convertedAmount).toBe(10_000 / rates!.rates.USD.ttm!);
+		expect(result!.convertedAmount).toBeCloseTo(10_000 / rates!.rates.USD.ttm!, 8);
 		expect(result!.from).toBe('JPY');
 		expect(result!.to).toBe('USD');
 	});
@@ -47,7 +47,7 @@ describe('convertCurrency', () => {
 		});
 
 		expect(result).not.toBeNull();
-		expect(result!.convertedAmount).toBe(100 * rates!.rates.USD.tts!);
+		expect(result!.convertedAmount).toBeCloseTo(100 * rates!.rates.USD.tts!, 8);
 		expect(result!.rate).toBe('tts');
 		expect(result!.rateValue).toBe(rates!.rates.USD.tts);
 	});
@@ -62,11 +62,13 @@ describe('convertCurrency', () => {
 		});
 
 		expect(result).not.toBeNull();
-		expect(result!.convertedAmount).toBe((10_000 * rates!.rates.KRW.ttm!) / 100);
+		expect(result!.convertedAmount).toBeCloseTo((10_000 * rates!.rates.KRW.ttm!) / 100, 8);
 		expect(result!.unit).toBe(100);
 	});
 
 	test('converts legacy Belgian Franc commercial rows per 100 units', async () => {
+		// Asserts synthetic fixture values
+		if (process.env.JPY_RATES_LIVE) { return; }
 		const result = await convertCurrency({
 			amount: 1000,
 			from: 'BEF',
@@ -231,5 +233,28 @@ describe('convertCurrency', () => {
 			to: 'JPY',
 			purpose: 'toString' as ConversionPurpose,
 		})).toThrow('Invalid purpose');
+	});
+
+	test('converted amounts have no floating-point noise', () => {
+		const result = convertWithRates({
+			source: 'https://example.com',
+			date: '2025-01-06',
+			rates: {
+				USD: {
+					name: 'US Dollar',
+					nameJa: 'US Dollar',
+					unit: 1,
+					tts: 158.73,
+					ttb: 156.73,
+					ttm: 157.73,
+				},
+			},
+		}, {
+			amount: 100,
+			from: 'USD',
+			to: 'JPY',
+		});
+		// 100 * 157.73 is 15772.999999999998 in binary floating point
+		expect(result.convertedAmount).toBe(15_773);
 	});
 });

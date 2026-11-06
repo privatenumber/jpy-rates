@@ -254,7 +254,9 @@ const monthlySummarySheetRows = (
 		label: string,
 		offset: number,
 	) => {
-		const row: (string | number | null)[] = [month === null ? null : monthName(month), label];
+		// 2001-2009 workbooks label February with full-width digits
+		const monthLabel = oldLabels && month === 2 ? '\uFF12\u6708' : (month === null ? null : monthName(month));
+		const row: (string | number | null)[] = [monthLabel, label];
 		for (const [index, currency] of currencies.entries()) {
 			const value = currency.base + offset + index / 10 + (month ?? 0) / 100;
 			row[2 + index * 3 + 2] = value;
@@ -333,7 +335,8 @@ const archiveWorkbook = (year: number) => {
 	const currencies = archiveCurrencies(year);
 	appendSheet(workbook, 'data', archiveDataRows(year, currencies));
 
-	if (year === 2001) {
+	// 1990-2000 workbooks have an average sheet instead of monthly highs and lows
+	if (year <= 2000) {
 		appendSheet(workbook, 'average', averageSheetRows(year, currencies));
 	} else if (year < 2010) {
 		appendSheet(workbook, monthlyHlaSheetName, monthlySummarySheetRows(currencies, true));
