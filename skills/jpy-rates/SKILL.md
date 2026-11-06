@@ -44,6 +44,8 @@ Add `--json` to any command for structured output. `jpy-rates sources` lists the
 - MURC publishes MUFG Bank's rates. Rules prefer the taxpayer's main bank but accept a reasonable rate used consistently. Rules that name a specific institution (the bank holding a deposit, the paying broker) require that institution's rate.
 - A Japanese broker's 年間取引報告書 already applies the broker's rates; prefer it for stock sales and dividends through that broker.
 - KRW and IDR are quoted per 100 units (`unit: 100`); tables mark them with `*`.
+- Customs rates apply to the week containing the import declaration date.
+- BOJ `basic` gives JPY rates; rows marked `derived` are computed as USD market rate × basic rate, as the announcement specifies. BOJ `reporting` rates are in USD, for reports that state amounts in USD.
 - Out-of-range or future dates throw a range error; in-range dates without data return no result.
 - This is source data, not tax advice; recommend checking with a tax professional for filing decisions.
 

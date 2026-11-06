@@ -385,6 +385,83 @@ const result = await parseArchiveWorkbook(xlsBuffer, {
 // }
 ```
 
+## Japan Customs (`jpy-rates/customs`)
+
+Weekly rates for converting the customs value of imports, announced by the Director-General of Customs. A rate applies to import declarations made during its week. It is based on the average market rate of the week before last (関税定率法4条の7). Weekly files are available from 2008.
+
+```bash
+jpy-rates customs 2026-11-06            # rates for the week containing the date
+jpy-rates customs 2026-11-06 -c usd --json
+```
+
+```ts
+import { fetchCustomsRates } from 'jpy-rates/customs'
+
+const result = await fetchCustomsRates('2026-11-06')
+// {
+//   source: 'https://www.customs.go.jp/tetsuzuki/kawase/kawase2026/kouji-rate20261101-20261107.pdf',
+//   attribution: '出典：税関ウェブサイト（...）、PDL1.0（...）',
+//   period: { start: '2026-11-01', end: '2026-11-07' },
+//   rates: {
+//     USD: {
+//       code: 'USD', countries: ['アメリカ合衆国'], currencyJa: 'ドル',
+//       unit: 1, rate: 150.00, equivalentTo: null,
+//     },
+//     KRW: { code: 'KRW', ..., unit: 100, rate: 11.00 },  ← JPY per 100 KRW
+//     BND: { code: 'BND', ..., rate: 120.00, equivalentTo: 'SGD' },  ← value copied from SGD
+//     ...
+//   }
+// }
+```
+
+- `rate` is JPY per `unit` currency units (1 or 100).
+- `countries` are the labels as published, such as `グレナダ他`.
+- `equivalentTo` marks a currency that the source publishes as equal to another one; its value is derived from that currency's row.
+- Returns `null` when no published week covers the date yet (Customs announces rates about a week ahead). Throws a `RangeError` before the first available week.
+- PDF parsing uses [`pdfjs-dist`](https://www.npmjs.com/package/pdfjs-dist), loaded only when this entry point fetches rates.
+
+## Bank of Japan (`jpy-rates/boj`)
+
+Monthly conversion rates for reports under the Foreign Exchange Act (外為法), set by the Minister of Finance and announced by the Bank of Japan. Available from 2016-01.
+
+```bash
+jpy-rates boj basic 2026-11              # 基準・裁定外国為替相場 (JPY)
+jpy-rates boj basic 2026-11 -c krw
+jpy-rates boj reporting 2026-11 -c eur   # 報告省令レート (USD)
+```
+
+```ts
+import { fetchBasicRates, fetchReportingRates } from 'jpy-rates/boj'
+
+const basic = await fetchBasicRates(2026, 11)
+// {
+//   month: '2026-11',
+//   basic: 150,                         ← JPY per 1 USD (基準外国為替相場)
+//   cross: { EUR: 170, GBP: 200, ... },  ← JPY per 1 unit, as published (裁定外国為替相場)
+//   referenceMonth: '2026-09',
+//   reference: [{ code: 'KRW', nameJa: '韓国ウォン', unit: 100, usd: 0.07 }, ...],
+//   arbitrated: { KRW: { unit: 100, rate: 10.5 }, ... },  ← derived: usd × basic
+//   source, attribution,
+// }
+
+const reporting = await fetchReportingRates(2026, 11)
+// {
+//   month: '2026-11',
+//   rates: {
+//     EUR: { code: 'EUR', unit: 1, usd: 1.10 },
+//     JPY: { code: 'JPY', unit: 150, usd: 1 },
+//     ...
+//   },
+//   source, attribution,
+// }
+```
+
+- `cross` lists the six currencies the announcement prices in yen.
+- For other currencies, the announcement states the rate is the USD market rate (`reference`) arbitraged through the basic rate. `arbitrated` computes that as `usd × basic`. It is derived by this package, and the BOJ states no rounding.
+- `reporting` rates are quoted in USD (`usd` per `unit` units), for reports that state amounts in USD.
+- `reference[].code` is `null` for a currency name this package does not recognize, so new currencies are not dropped.
+- Both functions return `null` for a month that is not announced yet (announcements come out around the 20th of the previous month).
+
 ## Tax-Related Context
 
 This package provides source-linked exchange-rate data. It is not tax, accounting, or legal advice, and it does not decide which rate applies to your filing. The summary below links to the rules so you can check them; `jpy-rates guide <topic>` prints the same information with exact excerpts of the rule text.
