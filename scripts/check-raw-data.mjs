@@ -22,6 +22,7 @@ const blockedPathPatterns = [
 
 const blockedDataExtensions = new Set([
 	'.csv',
+	'.pdf',
 	'.xls',
 	'.xlsx',
 ]);

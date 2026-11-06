@@ -1,3 +1,6 @@
 import { describe } from 'manten';
 
-describe('customs', () => {});
+describe('customs', () => {
+	import('./rates.ts');
+	import('./cli.ts');
+});
