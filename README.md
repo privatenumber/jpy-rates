@@ -96,7 +96,7 @@ jpy-rates murc monthly 2025 1        # month-end and monthly average
 jpy-rates murc yearly 2024           # year-end and yearly average
 ```
 
-Add `--json` to any command for structured output.
+Add `--json` to any command except `murc download-source` for structured output.
 
 ### Use it in code
 

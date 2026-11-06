@@ -12,7 +12,8 @@ jpy-rates is an ESM package for Node.js 22.22.2 or later. Each source has its ow
 ## Common behavior
 
 - **Dates:** pass a `'YYYY-MM-DD'` string, or a `Date` at local midnight (`new Date(2025, 0, 6)`) or UTC midnight (`new Date('2025-01-06')`). Other `Date` values, such as `new Date()`, throw because their calendar date is ambiguous.
-- **Ranges:** requests outside the source's available range, or in the future in Japan time, throw a `RangeError` without making a request. Functions return `null` when the source has no data for an in-range request.
+- **Ranges:** a date or month before a source's earliest data throws a `RangeError` without making a request. MURC daily functions also reject future dates in Japan time without a request. Customs and the BOJ announce rates ahead of time, so their functions request a future period and return `null` when it is not published yet. Every function returns `null` when an in-range request has no data.
+- **Today's MURC rates:** MURC publishes after about 11:00 JST. On a weekday, `fetchRates` and `fetchDaily` for today throw "not published yet" until then instead of falling back to the previous business day, because the rules allow that fallback only for days without a rate. If today is a bank holiday, pass the previous business day.
 - **Unexpected responses:** unexpected redirects and pages without the expected rate table throw instead of being treated as holidays.
 - **Cancellation:** every function that fetches accepts an optional last argument `{ signal }` with an `AbortSignal`. Aborting stops retries and business-day walkback.
 - **Sources and attribution:** every result includes a `source` URL for the page or file it was parsed from. Customs and BOJ results also include an `attribution` string to show when you publish the data. For the BOJ Time-Series Data Search API, the `attribution` is the credit text that the API terms require.
@@ -39,7 +40,7 @@ const topic = getGuideTopic('stock-sale')
 // }
 ```
 
-- `guideTopics` lists every topic: `general`, `stock-option`, `stock-sale`, `stock-acquisition`, `dividend`, `inheritance-asset`, `inheritance-debt`, `foreign-asset-report`, `import`, `foreign-exchange-report`.
+- `guideTopics` lists every topic: `general`, `stock-option`, `stock-sale`, `stock-acquisition`, `dividend`, `inheritance-asset`, `inheritance-debt`, `foreign-asset-report`, `import`, `export`, `foreign-exchange-report`.
 - `getGuideTopic(id)` returns one topic, or `undefined`.
 - `rateSources` lists the sources with what they provide, coverage, terms of use, and the attribution to show.
 
@@ -136,7 +137,7 @@ TTS/TTB/TTM for all currencies on a specific date. Available from 1990. The prim
 
 - `date`: `string` (`'YYYY-MM-DD'`) or `Date` (see [Common behavior](#common-behavior))
 
-Returns `null` if no data is found. Rates are keyed by [ISO 4217 currency code](https://en.wikipedia.org/wiki/ISO_4217) (e.g. `USD`, `EUR`, `GBP`).
+Returns `null` if no data is found. Rates are keyed by [ISO 4217 currency code](https://en.wikipedia.org/wiki/ISO_4217) (e.g. `USD`, `EUR`, `GBP`). A weekend or holiday falls back to the nearest earlier business day, and `date` in the result is the day used. A page whose rows do not parse as six cells, or whose TTM is not the midpoint of TTS and TTB (MURC's definition), throws instead of returning misread rates.
 
 ```ts
 const result = await fetchRates('2025-01-06')
@@ -236,7 +237,7 @@ const result = await fetchYearly(2024)
 
 #### fetchWorld()
 
-Reference rates for 120+ countries/territories against USD, grouped by region. Updated monthly.
+Reference rates for 120+ countries/territories against USD, grouped by region. Updated monthly. `quotation` is the rate quoted by the monetary authorities and `marketLevel` the market level; both are units of the currency per 1 USD unless the text says otherwise, and either can be empty. A regional CSV that is not the expected file, such as a maintenance page, throws instead of returning an empty region.
 
 ```ts
 const result = await fetchWorld()
@@ -245,9 +246,9 @@ const result = await fetchWorld()
 //   date: '2026-05-15',
 //   asia: [
 //     {
-//       country: 'China', countryJa: '中国',
-//       currency: 'Yuan Renminbi', code: 'CNY',
-//       quotation: 'per USD', marketLevel: '7.5000', remarks: '',
+//       country: 'Brunei', countryJa: 'ブルネイ',
+//       currency: 'Brunei Dollar =100 Cent(s)', code: 'B$',
+//       quotation: 'B$ 1=S$ 1', marketLevel: '', remarks: 'シンガポール・ドルと等価',
 //     },
 //     ...
 //   ],

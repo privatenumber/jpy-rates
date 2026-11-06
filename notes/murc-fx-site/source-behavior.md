@@ -61,6 +61,11 @@ The local market tables on `monthend/index.php` (`table.data-table7` after the f
 
 `parseRate` accepts only plain or comma-grouped numbers, so annotated cells become `null`. Merged cells go to `LocalMarketRate.rate`. Prefixes go to `quoteDate`; a prefix month later than the page month belongs to the previous year.
 
+## World and local market quote basis
+
+- World rates (`world.html` and `worlddata/<region>.csv`): the page notes say `基準相場および為替相場各欄は、特記なき限り対米ドル相場（1米ドルにつき各通貨単位）` and `Rates in 'Quotations by Monetary Authorities' and 'Market Levels' columns are against the US dollar (each currency for US$1) rates, unless otherwise indicated`. So the CSV `quotations` column is the official rate (often a peg such as `B$ 1=S$ 1`, or a number such as `2.7` for EC$), not a quote direction. On 2026-11-07, 104 of 122 rows had an empty `quotations` field. The CSV header row spells the first column `countory` in four regions and `country` in `mideast`; `parseCsv` validates the six other column names.
+- Monthly local market rates (`monthend/index.php`): the table is headed `諸通貨の現地における相場 Rates against the US dollar quoted in other markets`, so the CLI labels them per 1 USD. The 2026-10 page also showed a PHP warning (`require_once(inc/2610.html): Failed to open stream`) inside that section on 2026-11-07.
+
 ## Rate invariants
 
 MURC states `公表仲値（TTM）は、TTSとTTBの中間の相場であり、（TTS＋TTB）/2で算出されます` on the today page. On 2026-11-07, 486 daily rows with all three rates, sampled on 16 dates from 1990 to 2026, all had TTM within 0.005 of (TTS + TTB) / 2. `fetchRates` ([`src/murc/fetch-rates.ts`](../../src/murc/fetch-rates.ts)) throws when a row breaks this or when the cell count is not a multiple of 6, so a shifted or added column cannot be read silently as other rates. A sweep of 74 dates (two per year, 1990 to 2026) passed both checks.

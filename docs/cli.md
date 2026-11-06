@@ -19,9 +19,11 @@ Or install it globally with `npm install -g jpy-rates`. Requires Node.js 22.22.2
 - Output is human-readable by default. Add `--json` for compact JSON with the full result, including `source` URLs and attribution.
 - Currencies quoted per 100 units, such as KRW and IDR, are marked with `*` in tables.
 - `-c, --currency` filters to one currency code and is case-insensitive.
-- Colors are disabled when output is piped or `NO_COLOR` is set; `FORCE_COLOR` enables them.
+- Colors are disabled when output is piped or `NO_COLOR` is set; `FORCE_COLOR` enables them. In CI (`CI` is set), piped output keeps colors, which is how [ansis](https://github.com/webdiscus/ansis) detects color support; set `NO_COLOR=1` for plain text there.
 - Unknown flags are rejected with a suggestion. Errors print to stderr and exit with code 1.
-- Dates are `YYYY-MM-DD` and months are `YYYY-MM`. Out-of-range or future dates fail without a request.
+- Dates are `YYYY-MM-DD` and months are `YYYY-MM`. Dates before a source's earliest data fail without a request. MURC commands also reject future dates; Customs and BOJ commands check with the source, because they publish ahead, and say when a period is not published yet.
+- `murc` commands for today, on a weekday before MURC publishes (about 11:00 JST), exit with "not published yet" instead of using the previous business day's rate.
+- Human-readable tables end with the source URL. Every command except `murc download-source` accepts `--json`.
 
 ## guide
 
@@ -82,6 +84,8 @@ jpy-rates murc convert -a 1000 -f USD -t JPY -d 2025-01-06 -p stock-sale   # TTB
 jpy-rates murc convert -a 150000 -f JPY -t EUR -d 2025-01-06 -r tts
 ```
 
+The output names the rate, the date used, the bank (MUFG Bank, published by MURC), and the source URL. When a rule names your own broker or bank and it publishes a rate, that rate takes precedence.
+
 ### murc rates
 
 ```bash
@@ -104,7 +108,7 @@ Daily rates plus cash selling and buying rates. Defaults to today's published ra
 jpy-rates murc monthly <year> <month> [-c <currency>] [--json]
 ```
 
-Month-end rates, monthly averages, and local market rates from MUFG branches. Available from 2005-09. `-c` also matches local market currencies such as TWD.
+Month-end rates, monthly averages, and local market rates from MUFG branches. Local market rates are per 1 USD, as quoted in each market, with the quote date when MURC annotates one. Available from 2005-09. `-c` also matches local market currencies such as TWD.
 
 ### murc yearly
 
@@ -120,7 +124,7 @@ Year-end rates and yearly averages. Available from 2003.
 jpy-rates murc reference <year> [--json]
 ```
 
-Local reference rates for currencies outside the main table: CNY, TWD, and MYR from 2006; KRW, IDR, BRL, ARS, and CLP from 2009.
+Local reference rates for currencies outside the main table: CNY, TWD, and MYR from 2006; KRW, IDR, BRL, ARS, and CLP from 2009. Each currency's heading states its basis: per 1 USD, or per 1 or 100 JPY.
 
 ### murc world
 
@@ -128,7 +132,7 @@ Local reference rates for currencies outside the main table: CNY, TWD, and MYR f
 jpy-rates murc world [--json]
 ```
 
-Reference rates for over 120 countries and territories against USD, grouped by region. Updated monthly.
+Reference rates for over 120 countries and territories against USD, grouped by region. Updated monthly. `Official` is the rate quoted by the monetary authorities, often a peg such as `B$ 1=S$ 1`; `Market Level` is the market rate. Both are units of the currency per 1 USD unless the text says otherwise.
 
 ### murc download-source and parse-archive
 
