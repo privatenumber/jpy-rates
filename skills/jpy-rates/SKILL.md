@@ -25,6 +25,7 @@ Use jpy-rates when a task needs a yen conversion that must follow a Japanese rul
    | Inherited or gifted assets / debts | `inheritance-asset` / `inheritance-debt` |
    | 国外財産調書 (December 31 valuation) | `foreign-asset-report` |
    | Import customs value, import consumption tax | `import` |
+   | FOB value on an export declaration | `export` |
    | 外為法 reports (payments, securities acquisitions) | `foreign-exchange-report` |
 
 2. Run the command the guide prints, filling in the date the rule names:

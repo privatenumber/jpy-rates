@@ -231,6 +231,24 @@ export const guideTopics: GuideTopic[] = [
 		command: 'jpy-rates customs <declaration-date> -c <currency>',
 	},
 	{
+		id: 'export',
+		title: 'FOB value on an export declaration',
+		titleJa: '輸出申告価格（本船甲板渡し価格）の換算',
+		source: 'customs',
+		rate: 'Customs weekly rate (the same rate as for imports)',
+		date: 'Export declaration date; the rate published for the week containing it',
+		institution: 'Japan Customs (not a bank rate)',
+		rules: [
+			{
+				name: '関税法施行令第59条の2第4項',
+				url: 'https://laws.e-gov.go.jp/law/329CO0000000150#Mp-At_59_2',
+				excerpts: ['第二項に規定する本船甲板渡し価格を計算する場合において、外国通貨により表示された価格の本邦通貨への換算は、輸入貨物につき課税価格を計算する場合の例による。'],
+			},
+		],
+		notes: ['The rate follows the declaration date, not the loading or payment date.'],
+		command: 'jpy-rates customs <declaration-date> -c <currency>',
+	},
+	{
 		id: 'foreign-exchange-report',
 		title: 'Reports under the Foreign Exchange Act (外為法)',
 		titleJa: '外為法の報告書における換算',

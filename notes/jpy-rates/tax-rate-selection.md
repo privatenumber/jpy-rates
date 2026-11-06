@@ -26,6 +26,11 @@ The package keeps MURC as its source for bank customer rates, adds a `purpose` o
 | Inheritance and gift: debts | Final TTS | Valuation date | Same as above | 財産評価基本通達4-3 (注) |
 | 国外財産調書 | TTB | December 31 | Filer's bank; for a deposit, the bank holding it | [国外送金等調書法通達5-14](https://www.nta.go.jp/law/tsutatsu/kobetsu/hotei/2207xx/pdf/01.pdf), [FAQ 問18](https://www.nta.go.jp/publication/pamph/hotei/kokugai_zaisan/pdf/kokugai_faq.pdf) |
 
+Designated rates outside MURC:
+
+- Imports use the Customs weekly rate for the week of the import declaration ([カスタムスアンサー1406](https://www.customs.go.jp/tetsuzuki/c-answer/imtsukan/1406_jr.htm)).
+- Exports use the same rate for the FOB value on the export declaration: [関税法施行令第59条の2第4項](https://laws.e-gov.go.jp/law/329CO0000000150#Mp-At_59_2) says the conversion follows `輸入貨物につき課税価格を計算する場合の例による`. The e-Gov page renders with JavaScript, so the `export` guide excerpt was verified on 2026-11-07 against the e-Gov API v2 (`https://laws.e-gov.go.jp/api/2/law_data/329CO0000000150`). The 58th 通関士試験 (2024-10-06, ≪2≫ 第18問 choice 1) tests the wrong variant, the loading date (積み込む日), which confirms the declaration date is the reference.
+
 Common details:
 
 - When the date has no rate, every rule above uses the nearest **earlier** date (所基通57の3-2 注3(1), 評基通4-3, 通達5-14). This matches the walkback in `fetchRates` and `fetchDaily`.

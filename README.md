@@ -63,13 +63,13 @@ jpy-rates murc convert -a 300000 -f USD -t JPY -d 2025-12-31 -p foreign-asset-re
 
 December 31 has no published rate, so the latest earlier rate is used, as the rule says.
 
-### Convert import values for customs
+### Convert import and export values for customs
 
 ```bash
 jpy-rates customs 2026-11-06 -c usd
 ```
 
-Gets the Japan Customs rate for the week of the import declaration, which also sets the base of import consumption tax.
+Gets the Japan Customs rate for the week of the declaration. Imports use it for the customs value, which also sets the base of import consumption tax. Exports use the same rate for the FOB value on the declaration.
 
 ### Prepare Foreign Exchange Act (外為法) reports
 
@@ -115,7 +115,7 @@ The package ships with a built-in [agent skill](https://agentskills.io) that tel
 | Source | Rates | Used for |
 | --- | --- | --- |
 | [MURC](https://www.murc-kawasesouba.jp/fx/index.php) | [MUFG Bank](https://www.bk.mufg.jp/) customer TTS/TTB/TTM since 1990, cash rates, monthly and yearly summaries | Income tax, stock sales and dividends, inheritance, 国外財産調書 |
-| [Japan Customs](https://www.customs.go.jp/tetsuzuki/kawase/index.htm) | Weekly rates for customs valuation since 2008 | Customs duty and import consumption tax |
+| [Japan Customs](https://www.customs.go.jp/tetsuzuki/kawase/index.htm) | Weekly rates for customs valuation since 2008 | Customs duty, import consumption tax, export declarations |
 | [Bank of Japan](https://www.boj.or.jp/about/services/tame/tame_rate/index.htm) | Monthly rates set by the Minister of Finance since 2016 | Foreign Exchange Act reports |
 
 Every result links to the page or file it was parsed from. Data is fetched when you ask for it; nothing is bundled or cached.

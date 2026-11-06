@@ -42,6 +42,7 @@ inheritance-asset        TTB                  murc     Inherited or gifted forei
 inheritance-debt         TTS                  murc     Inherited foreign-currency debts
 foreign-asset-report     TTB                  murc     Statement of foreign assets
 import                   Customs weekly rate  customs  Customs value of imported goods (also the base of import consumption tax)
+export                   Customs weekly rate  customs  FOB value on an export declaration
 foreign-exchange-report  Basic or cross rate  boj      Reports under the Foreign Exchange Act (外為法)
 ```
 
@@ -144,7 +145,7 @@ jpy-rates murc parse-archive <file> [--json]
 jpy-rates customs <date> [-c <currency>] [--json]
 ```
 
-Japan Customs weekly rates for the week that contains `<date>`, such as an import declaration date. Rates convert the customs value of imports, which is also the base of import consumption tax. Available from 2008. A week that is not announced yet prints a "not published" error.
+Japan Customs weekly rates for the week that contains `<date>`, such as an import declaration date. Rates convert the customs value of imports, which is also the base of import consumption tax, and the FOB value on export declarations. Available from 2008. A week that is not announced yet prints a "not published" error.
 
 ```bash
 jpy-rates customs 2026-11-06 -c usd
