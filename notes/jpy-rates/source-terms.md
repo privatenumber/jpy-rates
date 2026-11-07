@@ -48,7 +48,7 @@ The terms were re-read on 2026-11-07. They are usage conditions (`以下の留�
 Implemented on 2026-11-07 as `boj market` and `boj effective` ([`src/boj/stat-api.ts`](../../src/boj/stat-api.ts)), after the maintainer chose to support it because it needs no key. How each condition is met:
 
 - Credit: the `boj-stat` source `attribution` is the exact credit text. Every result carries it, the CLI prints it, and the README terms table names it.
-- Access: requests are made only when the user asks, and each call fetches one month of all needed series in a single request.
+- Access: requests are made only when the user asks, and each call fetches one month of all needed series in a single request. Since 2026-11-07, [`fetchSource`](../../src/utils/fetch-source.ts) retries network errors and HTTP 502/503/504 at most twice, after 0.5 s and 1 s, so one call makes at most three requests. Other statuses are not retried, so a client error never repeats.
 - Notification: not sent yet. See the checklist below.
 
 The API serves interbank market rates, not the customer or designated rates that the tax and reporting rules require, so no guide topic points to it.

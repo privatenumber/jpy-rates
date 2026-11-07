@@ -14,7 +14,8 @@ jpy-rates is an ESM package for Node.js 22.22.2 or later. Each source has its ow
 - **Dates:** pass a `'YYYY-MM-DD'` string, or a `Date` at local midnight (`new Date(2025, 0, 6)`) or UTC midnight (`new Date('2025-01-06')`). Other `Date` values, such as `new Date()`, throw because their calendar date is ambiguous.
 - **Ranges:** a date or month before a source's earliest data throws a `RangeError` without making a request. MURC daily functions also reject future dates in Japan time without a request. Customs and the BOJ announce rates ahead of time, so their functions request a future period and return `null` when it is not published yet. Every function returns `null` when an in-range request has no data.
 - **Today's MURC rates:** MURC publishes after about 11:00 JST. On a weekday, `fetchRates` and `fetchDaily` for today throw "not published yet" until then instead of falling back to the previous business day, because the rules allow that fallback only for days without a rate. If today is a bank holiday, pass the previous business day.
-- **Unexpected responses:** unexpected redirects and pages without the expected rate table throw instead of being treated as holidays.
+- **Unexpected responses:** unexpected redirects and pages without the expected rate table throw instead of being treated as holidays. When a MURC page prints a server error (PHP `Warning` or `Fatal error`), the error message quotes it.
+- **Retries:** network errors, timeouts, and HTTP 502, 503, and 504 are retried twice, after 0.5 s and 1 s. Other HTTP errors, such as 404 or 500, fail on the first response.
 - **Cancellation:** every function that fetches accepts an optional last argument `{ signal }` with an `AbortSignal`. Aborting stops retries and business-day walkback.
 - **Sources and attribution:** every result includes a `source` URL for the page or file it was parsed from. Customs and BOJ results also include an `attribution` string to show when you publish the data. For the BOJ Time-Series Data Search API, the `attribution` is the credit text that the API terms require.
 
@@ -183,7 +184,7 @@ const result = await fetchDaily()
 
 Month-end rates and monthly averages. Available from September 2005.
 
-Returns `null` if no data is found. `localMarketRates` lists rates published by local markets and branches. A rate published as one value, such as a central rate, is in `rate`, with `selling` and `buying` set to `null`. `quoteDate` is set when the source annotates the quote with a date. `unit` is `1` for most currencies, `100` for low-value currencies (e.g. KRW, IDR) where rates are quoted per 100 units.
+Returns `null` if no data is found. `localMarketRates` lists rates published by local markets and branches, per 1 USD. It is `null` when the page shows a server error in place of that section, as MURC's latest month can before the section is uploaded; it is `{}` only when the page lists no local rates. A rate published as one value, such as a central rate, is in `rate`, with `selling` and `buying` set to `null`. `quoteDate` is set when the source annotates the quote with a date. `unit` is `1` for most currencies, `100` for low-value currencies (e.g. KRW, IDR) where rates are quoted per 100 units.
 
 ```ts
 const result = await fetchMonthly(2025, 1)

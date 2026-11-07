@@ -12,4 +12,5 @@ describe('jpy-rates', () => {
 	import('./murc/index.ts');
 	import('./customs/index.ts');
 	import('./boj/index.ts');
+	import('./fetch-source.ts');
 });

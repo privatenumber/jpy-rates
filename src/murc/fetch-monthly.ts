@@ -8,13 +8,22 @@ import type {
 import {
 	parseRate, computeTtm, parseUnit, cleanCellText,
 } from './utils.ts';
-import { fetchShiftJisHtml, unexpectedPageError } from './fetch-source.ts';
+import { fetchShiftJisHtml, findServerError, unexpectedPageError } from './fetch-source.ts';
 
 const mainColumnsPerRow = 9;
 
+// Venezuela is listed by currency name instead of a code: "（BOLIVAR FUERTE）"
+// from 2008-01 to 2010-04 and "Bs.S (BOLIVAR SOBERANO）" from 2018-08 to 2018-12
+const namedCurrencyCodes: [RegExp, string][] = [
+	[/BOLIVAR\s*FUERTE/, 'VEF'],
+	[/BOLIVAR\s*SOBERANO/, 'VES'],
+];
+
+// Other unrecognized names stay keyed by their published text so they remain visible
 const extractCurrencyCode = (text: string): string => {
 	const match = text.match(/^([A-Z]{3})/);
-	return match ? match[1] : text.trim();
+	if (match) { return match[1]!; }
+	return namedCurrencyCodes.find(([pattern]) => pattern.test(text))?.[1] ?? text.trim();
 };
 
 const parseMainTable = (table: Element): Record<string, MonthlyRate> => {
@@ -142,22 +151,28 @@ export const fetchMonthly = async (
 	if (!html) { return null; }
 
 	const { document } = parseHTML(html);
-	const tables = Array.from(document.querySelectorAll('table.data-table7'));
+	// Local market tables use the class data-table7-mb-text from 2005-09 to 2008-11
+	const tables = Array.from(document.querySelectorAll('table.data-table7, table.data-table7-mb-text'));
 
 	const mainTable = tables[0];
 	if (!mainTable) {
-		throw unexpectedPageError(url, 'missing rate table');
+		throw unexpectedPageError(url, 'missing rate table', html);
 	}
 
 	const rates = parseMainTable(mainTable);
 	if (Object.keys(rates).length === 0) {
-		throw unexpectedPageError(url, 'empty rate table');
+		throw unexpectedPageError(url, 'empty rate table', html);
 	}
 
-	const localMarketRates: Record<string, LocalMarketRate> = {};
+	const parsedLocalRates: Record<string, LocalMarketRate> = {};
 	for (const table of tables.slice(1)) {
-		Object.assign(localMarketRates, parseLocalMarketTable(table, year, month));
+		Object.assign(parsedLocalRates, parseLocalMarketTable(table, year, month));
 	}
+	// Every month from 2005-09 lists local market rates. None plus a server error on the
+	// page means the section failed to render, which is not the same as having no rates.
+	const localMarketRates = Object.keys(parsedLocalRates).length === 0 && findServerError(html)
+		? null
+		: parsedLocalRates;
 
 	return {
 		source: url,

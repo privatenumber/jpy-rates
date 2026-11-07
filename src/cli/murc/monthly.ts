@@ -23,15 +23,16 @@ const filtered = currency
 	? {
 		...result,
 		rates: pickCurrency(result.rates, currency),
-		localMarketRates: pickCurrency(result.localMarketRates, currency),
+		localMarketRates: result.localMarketRates && pickCurrency(result.localMarketRates, currency),
 	}
 	: result;
-if (
-	currency
-	&& Object.keys(filtered.rates).length === 0
-	&& Object.keys(filtered.localMarketRates).length === 0
-) {
-	fail(`Currency ${currency} not found in results`);
+if (currency && Object.keys(filtered.rates).length === 0) {
+	if (filtered.localMarketRates === null) {
+		fail(`Currency ${currency} is not in the main rate table, and this page's local market section is unavailable (MURC's page shows a server error there; for the latest month it usually appears later)`);
+	}
+	if (Object.keys(filtered.localMarketRates!).length === 0) {
+		fail(`Currency ${currency} not found in results`);
+	}
 }
 if (argv.flags.json) {
 	console.log(JSON.stringify(filtered));

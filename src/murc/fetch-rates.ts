@@ -28,7 +28,7 @@ const fetchRatesForDate = async (
 	const { document } = parseHTML(html);
 	const table = document.querySelector('table.data-table5');
 	if (!table) {
-		throw unexpectedPageError(url, 'missing rate table');
+		throw unexpectedPageError(url, 'missing rate table', html);
 	}
 
 	// The HTML is malformed — most <tr> opening tags are missing,
@@ -72,7 +72,7 @@ const fetchRatesForDate = async (
 	}
 
 	if (Object.keys(rates).length === 0) {
-		throw unexpectedPageError(url, 'empty rate table');
+		throw unexpectedPageError(url, 'empty rate table', html);
 	}
 
 	return {

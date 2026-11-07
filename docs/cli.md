@@ -20,7 +20,7 @@ Or install it globally with `npm install -g jpy-rates`. Requires Node.js 22.22.2
 - Currencies quoted per 100 units, such as KRW and IDR, are marked with `*` in tables.
 - `-c, --currency` filters to one currency code and is case-insensitive.
 - Colors are disabled when output is piped or `NO_COLOR` is set; `FORCE_COLOR` enables them. In CI (`CI` is set), piped output keeps colors, which is how [ansis](https://github.com/webdiscus/ansis) detects color support; set `NO_COLOR=1` for plain text there.
-- Unknown flags are rejected with a suggestion. Errors print to stderr and exit with code 1.
+- Unknown flags are rejected with a suggestion. Errors print to stderr and exit with code 1, including HTTP errors and server errors that a source page prints. Transient HTTP 502, 503, and 504 responses are retried twice first.
 - Dates are `YYYY-MM-DD` and months are `YYYY-MM`. Dates before a source's earliest data fail without a request. MURC commands also reject future dates; Customs and BOJ commands check with the source, because they publish ahead, and say when a period is not published yet.
 - `murc` commands for today, on a weekday before MURC publishes (about 11:00 JST), exit with "not published yet" instead of using the previous business day's rate.
 - Human-readable tables end with the source URL. Every command except `murc download-source` accepts `--json`.
@@ -108,7 +108,7 @@ Daily rates plus cash selling and buying rates. Defaults to today's published ra
 jpy-rates murc monthly <year> <month> [-c <currency>] [--json]
 ```
 
-Month-end rates, monthly averages, and local market rates from MUFG branches. Local market rates are per 1 USD, as quoted in each market, with the quote date when MURC annotates one. Available from 2005-09. `-c` also matches local market currencies such as TWD.
+Month-end rates, monthly averages, and local market rates from MUFG branches. Local market rates are per 1 USD, as quoted in each market, with the quote date when MURC annotates one. If MURC's page shows a server error in that section, the output says the section is unavailable, and `-c` for a local currency explains why it is missing. Available from 2005-09. `-c` also matches local market currencies such as TWD.
 
 ### murc yearly
 

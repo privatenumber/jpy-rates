@@ -146,4 +146,9 @@ describe('fetchRates', () => {
 		if (process.env.JPY_RATES_LIVE) { return; }
 		await expect(fetchRates('2025-03-05')).rejects.toThrow('Unexpected redirect');
 	});
+
+	test('names a server error printed on the page as the likely cause', async () => {
+		if (process.env.JPY_RATES_LIVE) { return; }
+		await expect(fetchRates('2025-03-06')).rejects.toThrow('the page shows a server error: Warning: require_once(inc/2602.html)');
+	});
 });

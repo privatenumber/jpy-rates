@@ -164,7 +164,10 @@ export const formatMonthly = (result: MonthlyResult, style: Ansis): string => {
 		sections.push('', style.dim(unitFootnote));
 	}
 
-	const localEntries = Object.entries(result.localMarketRates);
+	if (result.localMarketRates === null) {
+		sections.push('', style.dim('Local Market Rates: unavailable. MURC\'s page shows a server error in this section; for the latest month it usually appears later.'));
+	}
+	const localEntries = Object.entries(result.localMarketRates ?? {});
 	if (localEntries.length > 0) {
 		const localColumns = [
 			{ header: 'Code' },

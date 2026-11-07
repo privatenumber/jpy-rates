@@ -284,6 +284,15 @@ describe('cli', () => {
 		expect(stdout).toContain('2025-12-31');
 	});
 
+	test('monthly explains an unavailable local market section', async () => {
+		if (process.env.JPY_RATES_LIVE) { return; }
+		expect(await cli(['monthly', '2026', '2'])).toContain('Local Market Rates: unavailable. MURC\'s page shows a server error in this section');
+		await expect(cli(['monthly', '2026', '2', '-c', 'twd'])).rejects.toMatchObject({
+			exitCode: 1,
+			stderr: expect.stringContaining('local market section is unavailable'),
+		});
+	});
+
 	test('monthly --currency filters local market rates too', async () => {
 		const usd = JSON.parse(await cli(['monthly', '2026', '1', '-c', 'USD', '--json']));
 		expect(Object.keys(usd.rates)).toStrictEqual(['USD']);

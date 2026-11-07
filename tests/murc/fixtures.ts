@@ -75,12 +75,13 @@ const rateSummaryRows = (includeNewerCurrencies = true): (string | number | null
 };
 
 // Mirrors source quirks: quote-date prefixes, comma-grouped values, and merged single-rate cells
-const localMarketTable = () => `
-	<table class="data-table7">
+const localMarketTable = (className = 'data-table7', extraRows = '') => `
+	<table class="${className}">
 		<tr><td>Synthetic Taiwan</td><td>TWD Synthetic dollar</td><td>(1/24)31.50</td><td>(1/24)31.10</td><td>Synthetic Branch</td><td>Synthetic Source</td></tr>
 		<tr><td>Synthetic Indonesia</td><td>IDR Synthetic rupiah</td><td>16,550</td><td>15,950</td><td>Synthetic Branch</td><td>Synthetic Source</td></tr>
 		<tr><td>Synthetic China</td><td>CNY Synthetic yuan</td><td colspan="2">(12/31)7.1698</td><td>Synthetic Center</td><td>Synthetic Source</td></tr>
 		<tr><td>Synthetic Hong Kong</td><td>HKD Synthetic dollar</td><td colspan="2">unquoted</td><td>Synthetic Center</td><td>Synthetic Source</td></tr>
+		${extraRows}
 	</table>
 `;
 
@@ -111,6 +112,21 @@ const todayHtml = () => `
 const monthlyHtml = () => `
 	${table('data-table7', rateSummaryRows())}
 	${localMarketTable()}
+`;
+
+// PHP prints errors into MURC's pages; a fatal error also stops the rest of the page
+const phpFatalError = '<b>Warning</b>: require_once(inc/2602.html): Failed to open stream: No such file or directory in <b>/synthetic/index.php</b> on line <b>122</b><br />\n<b>Fatal error</b>: Uncaught Error: Failed opening required \'inc/2602.html\' in /synthetic/index.php:122 Stack trace: #0 {main} thrown in <b>/synthetic/index.php</b> on line <b>122</b><br />';
+
+const monthlyServerErrorHtml = () => `
+	${table('data-table7', rateSummaryRows())}
+	<h2>Rates against the US dollar quoted in other markets</h2>
+	${phpFatalError}
+`;
+
+// 2005-09 to 2008-11 use another table class; Venezuela is listed by name from 2008-01 to 2010-04
+const monthlyOldClassHtml = () => `
+	${table('data-table7', rateSummaryRows(false))}
+	${localMarketTable('data-table7-mb-text', '<tr><td>Synthetic Venezuela</td><td>&#65288;BOLIVAR&#12288;FUERTE&#65289;</td><td colspan="2">2.15</td><td>Synthetic Center</td><td>Synthetic Source</td></tr>')}
 `;
 
 const yearlyHtml = (year: number, includeNewerCurrencies = true) => `
@@ -552,6 +568,9 @@ export const murcFixture = (url: string): Response | undefined => {
 	if (url.includes('past_3month_result.php?y=2025&m=3&d=4')) {
 		return new Response(table('data-table5', [['US Dollar', 'Synthetic USD', 'USD', '105.00', '103.00', '103.00']]));
 	}
+	if (url.includes('past_3month_result.php?y=2025&m=3&d=6')) {
+		return new Response(phpFatalError);
+	}
 	if (url.includes('past_3month_result.php?y=2025&m=3&d=5')) {
 		return noDataRedirect('https://other.example/fx/index.php');
 	}
@@ -615,6 +634,12 @@ export const murcFixture = (url: string): Response | undefined => {
 
 	if (url.includes('monthend/index.php?id=2601')) {
 		return new Response(monthlyHtml());
+	}
+	if (url.includes('monthend/index.php?id=2602')) {
+		return new Response(monthlyServerErrorHtml());
+	}
+	if (url.includes('monthend/index.php?id=0801')) {
+		return new Response(monthlyOldClassHtml());
 	}
 
 	if (url.includes('yearend/index.php?id=2024')) {

@@ -83,17 +83,17 @@ const parseDailyPage = (
 		.find(found => found.length > 0) ?? [];
 	const mainTable = tables[0];
 	if (!mainTable) {
-		throw unexpectedPageError(url, 'missing rate table');
+		throw unexpectedPageError(url, 'missing rate table', html);
 	}
 
 	const date = parseDateFromHeading(document);
 	if (!date) {
-		throw unexpectedPageError(url, 'missing date heading');
+		throw unexpectedPageError(url, 'missing date heading', html);
 	}
 
 	const rates = parseMainTable(mainTable, Number(date.slice(0, 4)));
 	if (Object.keys(rates).length === 0) {
-		throw unexpectedPageError(url, 'empty rate table');
+		throw unexpectedPageError(url, 'empty rate table', html);
 	}
 
 	return {

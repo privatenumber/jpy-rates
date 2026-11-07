@@ -33,6 +33,17 @@ export const fetchShiftJisHtml = async (
 	return new TextDecoder('shift_jis').decode(buffer);
 };
 
-export const unexpectedPageError = (url: string, detail: string): Error => new Error(
-	`Unexpected page structure (${detail}): ${url}`,
+// MURC's pages are rendered by PHP, which prints errors into the HTML, such as
+// "<b>Fatal error</b>: Uncaught Error: Failed opening required 'inc/2610.html'
+// ... on line <b>122</b>".
+// A fatal error also stops the rest of the page from rendering.
+export const findServerError = (html: string): string | null => (
+	html.replaceAll(/<[^>]+>/g, '').match(/\b(?:Fatal error|Parse error|Warning): .+? on line \d+/s)?.[0]
+		.replaceAll(/\s+/g, ' ') ?? null
 );
+
+// Pass the page HTML so a server error on the page is named as the likely cause
+export const unexpectedPageError = (url: string, detail: string, html?: string): Error => {
+	const serverError = html === undefined ? null : findServerError(html);
+	return new Error(`Unexpected page structure (${detail})${serverError ? `; the page shows a server error: ${serverError}` : ''}: ${url}`);
+};

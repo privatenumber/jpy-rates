@@ -112,7 +112,13 @@ export type MonthlyResult = {
 	year: number;
 	month: number;
 	rates: Record<string, MonthlyRate>;
-	localMarketRates: Record<string, LocalMarketRate>;
+
+	/**
+	 * Rates quoted in local markets, per 1 USD. null when the source page shows a
+	 * server error instead of this section, such as the latest month before MURC
+	 * uploads it; {} when the page lists none.
+	 */
+	localMarketRates: Record<string, LocalMarketRate> | null;
 };
 
 // fetchYearly

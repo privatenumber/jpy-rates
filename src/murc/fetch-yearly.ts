@@ -88,12 +88,12 @@ export const fetchYearly = async (
 	const { document } = parseHTML(html);
 	const table = document.querySelector('table.data-table7');
 	if (!table) {
-		throw unexpectedPageError(source, 'missing rate table');
+		throw unexpectedPageError(source, 'missing rate table', html);
 	}
 
 	const rates = parseTable(table);
 	if (Object.keys(rates).length === 0) {
-		throw unexpectedPageError(source, 'empty rate table');
+		throw unexpectedPageError(source, 'empty rate table', html);
 	}
 
 	return {

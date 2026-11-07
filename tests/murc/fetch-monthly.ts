@@ -23,15 +23,15 @@ describe('fetchMonthly', () => {
 	test('localMarketRates has entries with selling/buying/source', async () => {
 		const result = await fetchMonthly(2026, 1);
 		expect(result).not.toBeNull();
-		expect(Object.keys(result!.localMarketRates).length).toBeGreaterThan(0);
+		expect(Object.keys(result!.localMarketRates!).length).toBeGreaterThan(0);
 
-		const twd = result!.localMarketRates.TWD;
+		const twd = result!.localMarketRates!.TWD;
 		expect(twd).toBeDefined();
 		expect(twd.selling).not.toBeNull();
 		expect(twd.buying).not.toBeNull();
 		expect(twd.source.length).toBeGreaterThan(0);
 
-		const cny = result!.localMarketRates.CNY;
+		const cny = result!.localMarketRates!.CNY;
 		expect(cny).toBeDefined();
 		expect(cny.source.length).toBeGreaterThan(0);
 	});
@@ -54,7 +54,7 @@ describe('fetchMonthly', () => {
 			const result = await fetchMonthly(2026, 1);
 			const {
 				TWD, IDR, CNY, HKD,
-			} = result!.localMarketRates;
+			} = result!.localMarketRates!;
 			expect(TWD).toMatchObject({
 				selling: 31.5,
 				buying: 31.1,
@@ -100,4 +100,18 @@ describe('fetchMonthly', () => {
 		expect(result!.year).toBe(2026);
 		expect(result!.month).toBe(1);
 	});
+
+	if (!process.env.JPY_RATES_LIVE) {
+		test('a server error in the local market section is null, not an empty list', async () => {
+			const result = await fetchMonthly(2026, 2);
+			expect(Object.keys(result!.rates).length).toBeGreaterThan(0);
+			expect(result!.localMarketRates).toBeNull();
+		});
+
+		test('reads 2005-2008 local market tables and Venezuela listed by name', async () => {
+			const result = await fetchMonthly(2008, 1);
+			expect(Object.keys(result!.localMarketRates!)).toStrictEqual(['TWD', 'IDR', 'CNY', 'HKD', 'VEF']);
+			expect(result!.localMarketRates!.VEF!.rate).toBe(2.15);
+		});
+	}
 });
