@@ -1,0 +1,59 @@
+{
+  "name": "jpy-rates",
+  "version": "0.0.0-semantic-release",
+  "description": "Official and source-linked JPY exchange rates for Japanese tax and reporting: MURC (MUFG Bank), Japan Customs, and Bank of Japan",
+  "keywords": [
+    "mufg",
+    "murc",
+    "customs",
+    "boj",
+    "exchange-rate",
+    "jpy",
+    "tts",
+    "ttb",
+    "ttm",
+    "forex"
+  ],
+  "license": "MIT",
+  "repository": "privatenumber/jpy-rates",
+  "author": {
+    "name": "Hiroki Osame",
+    "email": "hiroki.osame@gmail.com"
+  },
+  "files": [
+    "dist",
+    "skills"
+  ],
+  "type": "module",
+  "bin": "./dist/cli/index.mjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./murc": {
+      "types": "./dist/murc/index.d.mts",
+      "default": "./dist/murc/index.mjs"
+    },
+    "./customs": {
+      "types": "./dist/customs/index.d.mts",
+      "default": "./dist/customs/index.mjs"
+    },
+    "./boj": {
+      "types": "./dist/boj/index.d.mts",
+      "default": "./dist/boj/index.mjs"
+    }
+  },
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "dependencies": {
+    "ansis": "^4.5.0",
+    "cleye": "3.0.0-beta.2",
+    "linkedom": "^0.18.13",
+    "officecrypto-tool": "^0.0.19",
+    "pdfjs-dist": "^6.5.438",
+    "string-width": "^8.3.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

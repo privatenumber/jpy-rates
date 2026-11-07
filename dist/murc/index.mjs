@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+export { c as conversionPurposes, a as convertCurrency, b as convertWithRates, r as rateTypeForPurpose } from '../convert-currency-DuxaNSLK.mjs';
+export { f as fetchRates } from '../fetch-rates-DEapXvMJ.mjs';
+export { f as fetchDaily } from '../fetch-daily-BfvsvHL3.mjs';
+export { f as fetchMonthly } from '../fetch-monthly-gHYi0cvo.mjs';
+export { f as fetchYearly } from '../fetch-yearly-BB7uvC_N.mjs';
+export { f as fetchWorld } from '../fetch-world-m8MEjupp.mjs';
+export { f as fetchReference } from '../fetch-reference-DqAoVRf8.mjs';
+export { d as downloadArchiveSource, g as getArchiveSourceUrl, p as parseArchiveWorkbook } from '../archive-CGyOiln5.mjs';
+import '../date-Ch1m7K65.mjs';
+import '../number-DrM6UAah.mjs';
+import 'linkedom';
+import '../utils-CAeY9tnY.mjs';
+import '../rate-units-4VBNvvzQ.mjs';
+import '../fetch-source-CRkPC07b.mjs';
+import '../fetch-source-BHAj9IoI.mjs';
+import 'node:timers/promises';
+import '../parse-xls-ZcOCCVSl.mjs';
+import 'node:crypto';
+import 'xlsx';
