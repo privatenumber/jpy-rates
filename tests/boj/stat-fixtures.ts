@@ -1,7 +1,11 @@
-import { setTimeout } from 'node:timers/promises';
-
 // Synthetic BOJ Time-Series Data Search API responses. No source values are stored.
 const endpoint = 'https://www.stat-search.boj.or.jp/api/v1/getDataCode';
+
+// Lets a test abort after the response arrives and before its body fails
+export const stalledBody = {
+	requested: Promise.withResolvers<void>(),
+	release: Promise.withResolvers<void>(),
+};
 
 const json = (body: unknown, status = 200) => Response.json(body, {
 	status,
@@ -62,11 +66,12 @@ export const statFixture = (url: string): Response | undefined => {
 			});
 		}
 		case 'FM09 FX180 202603': { return ok(codes, [202_602], () => 70); }
-		// The body fails while it is read, as a connection reset or an abort would
+		// The body fails while it is read, but only after the test releases it
 		case 'FM09 FX180 202604': {
+			stalledBody.requested.resolve();
 			return new Response(new ReadableStream({
 				async pull(controller) {
-					await setTimeout(50);
+					await stalledBody.release.promise;
 					controller.error(new Error('body read failed'));
 				},
 			}));

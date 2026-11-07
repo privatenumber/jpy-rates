@@ -1,9 +1,9 @@
-import { setTimeout } from 'node:timers/promises';
 import { describe, expect, test } from 'manten';
 import spawn from 'nano-spawn';
 import {
 	fetchDailyMarketRates, fetchEffectiveRates, fetchMonthlyMarketRates,
 } from '../../src/boj/index.ts';
+import { stalledBody } from './stat-fixtures.ts';
 
 const credit = 'このサービスは、日本銀行時系列統計データ検索サイトの API 機能を使用しています。サービスの内容は日本銀行によって保証されたものではありません。';
 
@@ -111,12 +111,14 @@ if (process.env.JPY_RATES_LIVE) {
 		});
 
 		test('an abort while reading the response is reported as the caller\'s reason', async () => {
-			// The fixture body fails 50 ms after the response arrives; the caller aborts first
 			const controller = new AbortController();
-			const pending = fetchEffectiveRates(2026, 4, { signal: controller.signal });
-			await setTimeout(10);
+			// Capture the outcome now so the rejection is never unhandled
+			const outcome = fetchEffectiveRates(2026, 4, { signal: controller.signal })
+				.then(() => undefined, (error: unknown) => error);
+			await stalledBody.requested.promise;
 			controller.abort(new Error('caller stopped'));
-			await expect(pending).rejects.toThrow('caller stopped');
+			stalledBody.release.resolve();
+			expect(await outcome).toMatchObject({ message: 'caller stopped' });
 		});
 
 		test('daily rates are in date order', async () => {
